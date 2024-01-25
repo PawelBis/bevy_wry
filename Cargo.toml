@@ -6,6 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-wry = "0.35"
+wry = { version = "0.35", features = ["transparent"] }
 bevy = "0.12"
 winit = "0.29"

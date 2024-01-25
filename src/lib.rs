@@ -1,23 +1,40 @@
-use bevy::math::IVec2;
-use bevy::utils::HashMap;
+use bevy::{prelude::*, window::PrimaryWindow, winit::WinitWindows};
+use wry::WebViewBuilder;
 
-use bevy::window::{RawHandleWrapper, Window};
-use winit::event_loop::EventLoopWindowTarget;
-use winit::window::{Window as WinitWindow, WindowId};
-
-#[derive(Debug, Default)]
-pub struct WinitWindows {
-    pub windows: Vec<WinitWindow>,
-    // Winit is safe to call only from main thread
-    _not_send_sync: core::marker::PhantomData<*const ()>,
+#[derive(Resource, Clone, Default)]
+pub struct BevyWryPlugin {
+    pub as_child: bool,
+    pub url: Option<String>,
+    pub html: Option<String>,
 }
 
-impl WinitWindows {
-    pub fn create_window(
-        &mut self,
-        event_loop: &EventLoopWindowTarget<()>,
-        window_id: WindowId,
-        window: &Window,
-    ) {
+impl Plugin for BevyWryPlugin {
+    fn build(&self, app: &mut App) {
+        app.insert_resource(self.clone())
+            .add_systems(Startup, setup_webview);
     }
+}
+
+fn setup_webview(world: &mut World) {
+    let mut primary_window = world.query_filtered::<Entity, With<PrimaryWindow>>();
+    let windows = world.get_non_send_resource::<WinitWindows>().unwrap();
+    let raw_window = windows.get_window(primary_window.single(world)).unwrap();
+
+    let wry_config = world.get_resource::<BevyWryPlugin>().unwrap();
+    let mut webview_builder = if wry_config.as_child {
+        WebViewBuilder::new_as_child(raw_window)
+    } else {
+        WebViewBuilder::new(raw_window)
+    };
+
+    if let Some(url) = &wry_config.url {
+        webview_builder = webview_builder.with_url(&url).unwrap()
+    };
+
+    if let Some(html) = &wry_config.html {
+        webview_builder = webview_builder.with_html(html).unwrap();
+    }
+
+    let webview = webview_builder.with_transparent(true).build().unwrap();
+    world.insert_non_send_resource(webview);
 }
