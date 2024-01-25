@@ -2,6 +2,12 @@
 name = "bevy_wry"
 version = "0.1.0"
 edition = "2021"
+categories = ["bevy-plugin", "gui"]
+description = "A tauri-apps/wry integration with Bevy engine"
+keywords = ["bevy", "wry", "bevy_wry"]
+license = "MIT"
+author = "Pawel Bis"
+repository = "https://github.com/PawelBis/bevy_wry"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
