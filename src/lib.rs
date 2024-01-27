@@ -1,5 +1,10 @@
-use bevy::{prelude::*, window::PrimaryWindow, winit::WinitWindows};
+mod error;
+
+use bevy::{prelude::*, utils, window::PrimaryWindow, winit::WinitWindows};
+use error::Error;
 use wry::{raw_window_handle::HasRawWindowHandle, Rect, WebView, WebViewBuilder};
+
+type Result<T> = std::result::Result<T, Error>;
 
 /// Resource storing url data.
 /// We use const generics here, so we can query urls separately
@@ -43,7 +48,7 @@ impl Plugin for BevyWryPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(self.clone())
             .init_non_send_resource::<Option<WebView>>()
-            .add_systems(Startup, setup_webview)
+            .add_systems(Startup, setup_webview.map(utils::error))
             .add_systems(Last, update_webview_bounds.after(setup_webview));
     }
 }
@@ -60,28 +65,30 @@ fn init_webview_builder<'a>(
     }
 }
 
-fn setup_webview(world: &mut World) {
+fn setup_webview(world: &mut World) -> Result<()> {
     let wry_config = world
         .remove_resource::<BevyWryPlugin>()
-        .expect("BevyWryPlugin resource is missing");
+        .ok_or_else(|| Error::MissingResource("BevyWryPlugin".to_owned()))?;
 
     let primary_window_entity = world
         .query_filtered::<Entity, With<PrimaryWindow>>()
         .single(world);
     let primary_window = world
         .get_non_send_resource::<WinitWindows>()
-        .and_then(|windows| windows.get_window(primary_window_entity))
-        .expect("Couldn't get primary window");
+        .ok_or_else(|| Error::MissingResource("WinitWindows".to_owned()))?
+        .get_window(primary_window_entity)
+        .ok_or(Error::FailedToGetMainWindow)?;
 
     let webview = init_webview_builder(&wry_config, primary_window)
         .with_transparent(true)
-        .with_url(&wry_config.url)
-        .and_then(|wb| wb.build())
-        .expect("Failed to build webview");
+        .with_url(&wry_config.url)?
+        .build()?;
 
     world.insert_resource(wry_config.url);
     world.insert_resource(wry_config.bounds.unwrap_or_default());
     world.insert_non_send_resource(webview);
+
+    Ok(())
 }
 
 /// This system handles changes in webview bounds. Those changes can be schedules via `WebViewBounds` resource
