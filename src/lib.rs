@@ -1,6 +1,6 @@
 mod error;
 
-use bevy::{prelude::*, utils, window::PrimaryWindow, winit::WinitWindows, render::camera::Viewport};
+use bevy::{prelude::*, utils, window::PrimaryWindow, winit::WinitWindows};
 use error::Error;
 use wry::{WebView, WebViewBuilder};
 
@@ -9,10 +9,7 @@ type Result<T> = std::result::Result<T, Error>;
 /// Resource storing url data.
 /// We use const generics here, so we can query urls separately
 #[derive(Resource, Deref, Clone, Default)]
-pub struct UrlResource<const N: u8>(pub String);
-
-#[derive(Resource, Clone, Default)]
-pub struct EditorViewport(pub Viewport);
+pub struct UrlResource(pub String);
 
 #[derive(Resource, Clone, Default)]
 /// Wry window is allways spawned as a child of `PrimaryWindow`, otherwise
@@ -20,10 +17,7 @@ pub struct EditorViewport(pub Viewport);
 pub struct BevyWryPlugin {
     /// WebView will be initialised with this url
     /// Additionally it will be stored via `insert_resource`
-    pub url: UrlResource<0>,
-    /// `bevy_wry` will setup a viewport camera if `viewport.is_some()`. This
-    /// viewport can be modified through `EditorViewport` resource.
-    pub viewport: Option<Viewport>,
+    pub url: UrlResource,
 }
 
 impl Plugin for BevyWryPlugin {
@@ -56,18 +50,5 @@ fn setup_webview(world: &mut World) -> Result<()> {
     world.insert_resource(wry_config.url);
     world.insert_non_send_resource(webview);
 
-    if let Some(viewport) = wry_config.viewport {
-        let camera = Camera2dBundle {
-            camera: Camera {
-                viewport: Some(viewport),
-                ..default()
-            },
-            ..default()
-        };
-
-        world.spawn(camera);
-    }
-
     Ok(())
 }
-
