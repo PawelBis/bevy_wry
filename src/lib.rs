@@ -26,7 +26,7 @@ impl Plugin for BevyWryPlugin {
         app.insert_resource(self.clone())
             .init_non_send_resource::<Option<WebView>>()
             .add_systems(Startup, setup_webview.map(utils::error))
-            .add_systems(Startup, websocket::setup_websocket);
+            .add_systems(Startup, websocket::setup_websocket.map(utils::error));
     }
 }
 
@@ -47,6 +47,12 @@ fn setup_webview(world: &mut World) -> Result<()> {
     let webview = WebViewBuilder::new_as_child(primary_window)
         .with_transparent(true)
         .with_url(&wry_config.url)?
+        .with_bounds(wry::Rect {
+            x: 0,
+            y: 0,
+            width: 1000,
+            height: 1000,
+        })
         .build()?;
 
     world.insert_resource(wry_config.url);
