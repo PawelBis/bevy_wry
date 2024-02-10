@@ -1,6 +1,5 @@
-use tungstenite::WebSocket;
 use bevy::prelude::*;
-use std::net::{TcpListener, TcpStream, AddrParseError, SocketAddr};
+use std::net::{TcpListener, AddrParseError};
 use std::thread;
 use thiserror;
 
@@ -12,7 +11,7 @@ pub enum Error {
 
 #[derive(Resource, Default)]
 pub struct MessageBus<T> {
-    messages: Vec<T>,
+    _messages: Vec<T>,
 }
 
 fn handle_client(server: TcpListener) {
