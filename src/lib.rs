@@ -1,6 +1,6 @@
 mod error;
-mod websocket;
 mod types;
+mod websocket;
 
 use bevy::{prelude::*, utils, window::PrimaryWindow, winit::WinitWindows};
 use error::Error;
@@ -28,7 +28,10 @@ impl Plugin for BevyWryPlugin {
         app.insert_resource(self.clone())
             .init_non_send_resource::<Option<WebView>>()
             .add_systems(Startup, setup_webview.map(utils::error))
-            .add_systems(Startup, websocket::setup_websocket::<EditorCommand>.map(utils::error));
+            .add_systems(
+                Startup,
+                websocket::setup_websocket::<EditorCommand>.map(utils::error),
+            );
     }
 }
 

@@ -1,16 +1,16 @@
 use bevy::prelude::*;
-use std::net::{TcpListener, AddrParseError, TcpStream};
-use std::sync::{Arc, Mutex, LockResult, MutexGuard};
+use serde::Deserialize;
+use std::net::{AddrParseError, TcpListener, TcpStream};
+use std::sync::{Arc, LockResult, Mutex, MutexGuard};
 use std::thread;
 use thiserror;
-use serde::Deserialize;
 
 use crate::types::EditorCommand;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("Failed to parse address: {0}")]
-    FailedToBincTcpListener(#[from]AddrParseError),
+    FailedToBincTcpListener(#[from] AddrParseError),
 }
 
 #[derive(Resource, Default, Debug)]
@@ -18,8 +18,7 @@ pub struct MessageBus<T: Send> {
     messages: Arc<Mutex<Vec<T>>>,
 }
 
-impl<T: Send> Clone for MessageBus<T>
-{
+impl<T: Send> Clone for MessageBus<T> {
     fn clone(&self) -> Self {
         Self {
             messages: self.messages.clone(),
@@ -39,17 +38,14 @@ impl<'a, T: Send> MessageBus<T> {
     }
 }
 
-
 fn handle_connections<'a, T: Send + 'static>(server: TcpListener, message_bus: MessageBus<T>)
 where
-    for<'de> T: Deserialize<'de> + 'a
+    for<'de> T: Deserialize<'de> + 'a,
 {
     for stream in server.incoming() {
         let mb = message_bus.clone();
         thread::spawn(move || match stream {
-            Ok(s) => {
-                handle_client(s, mb)
-            },
+            Ok(s) => handle_client(s, mb),
             Err(e) => println!("{:?}", e),
         });
     }
@@ -57,7 +53,7 @@ where
 
 fn handle_client<'a, T: Send>(stream: TcpStream, mut message_bus: MessageBus<T>)
 where
-    for<'de> T: Deserialize<'de> + 'a
+    for<'de> T: Deserialize<'de> + 'a,
 {
     let mut socket = tungstenite::accept(stream).unwrap();
     loop {
@@ -68,7 +64,7 @@ where
                     let mut msg_bus = message_bus.lock().unwrap();
                     msg_bus.push(decoded);
                     println!("len: {}", msg_bus.len())
-                },
+                }
                 tungstenite::Message::Binary(_) => todo!(),
                 tungstenite::Message::Ping(_) => todo!(),
                 tungstenite::Message::Pong(_) => todo!(),
@@ -82,7 +78,7 @@ where
 
 pub fn setup_websocket<'a, T: Send + 'static>(mut commands: Commands) -> Result<(), Error>
 where
-    for<'de> T: Deserialize<'de> + 'a
+    for<'de> T: Deserialize<'de> + 'a,
 {
     let message_bus = MessageBus::<T>::new();
     let server = TcpListener::bind("localhost:8876").unwrap();
@@ -94,4 +90,3 @@ where
     commands.insert_resource(message_bus);
     Ok(())
 }
-
