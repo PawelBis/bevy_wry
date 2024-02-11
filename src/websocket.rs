@@ -1,7 +1,11 @@
 use bevy::prelude::*;
-use std::net::{TcpListener, AddrParseError};
+use std::net::{TcpListener, AddrParseError, TcpStream};
+use std::sync::{Arc, Mutex, LockResult, MutexGuard};
 use std::thread;
 use thiserror;
+use serde::Deserialize;
+
+use crate::types::EditorCommand;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -9,31 +13,85 @@ pub enum Error {
     FailedToBincTcpListener(#[from]AddrParseError),
 }
 
-#[derive(Resource, Default)]
-pub struct MessageBus<T> {
-    _messages: Vec<T>,
+#[derive(Resource, Default, Debug)]
+pub struct MessageBus<T: Send> {
+    messages: Arc<Mutex<Vec<T>>>,
 }
 
-fn handle_client(server: TcpListener) {
+impl<T: Send> Clone for MessageBus<T>
+{
+    fn clone(&self) -> Self {
+        Self {
+            messages: self.messages.clone(),
+        }
+    }
+}
+
+impl<'a, T: Send> MessageBus<T> {
+    pub fn new() -> Self {
+        MessageBus {
+            messages: Arc::new(Mutex::new(Vec::new())),
+        }
+    }
+
+    pub fn lock(&mut self) -> LockResult<MutexGuard<'_, Vec<T>>> {
+        self.messages.lock()
+    }
+}
+
+
+fn handle_connections<'a, T: Send + 'static>(server: TcpListener, message_bus: MessageBus<T>)
+where
+    for<'de> T: Deserialize<'de> + 'a
+{
     for stream in server.incoming() {
+        let mb = message_bus.clone();
         thread::spawn(move || match stream {
             Ok(s) => {
-                let mut socket = tungstenite::accept(s).unwrap();
-                loop {
-                    let msg = socket.read();
-                    println!("{:?}", msg);
-                }
+                handle_client(s, mb)
             },
             Err(e) => println!("{:?}", e),
         });
     }
 }
 
-pub fn setup_websocket(mut commands: Commands) -> Result<(), Error> {
+fn handle_client<'a, T: Send>(stream: TcpStream, mut message_bus: MessageBus<T>)
+where
+    for<'de> T: Deserialize<'de> + 'a
+{
+    let mut socket = tungstenite::accept(stream).unwrap();
+    loop {
+        match socket.read() {
+            Ok(msg) => match msg {
+                tungstenite::Message::Text(json) => {
+                    let decoded: T = serde_json::from_str(&json).unwrap();
+                    let mut msg_bus = message_bus.lock().unwrap();
+                    msg_bus.push(decoded);
+                    println!("len: {}", msg_bus.len())
+                },
+                tungstenite::Message::Binary(_) => todo!(),
+                tungstenite::Message::Ping(_) => todo!(),
+                tungstenite::Message::Pong(_) => todo!(),
+                tungstenite::Message::Close(_) => todo!(),
+                tungstenite::Message::Frame(_) => todo!(),
+            },
+            Err(_) => todo!(),
+        }
+    }
+}
+
+pub fn setup_websocket<'a, T: Send + 'static>(mut commands: Commands) -> Result<(), Error>
+where
+    for<'de> T: Deserialize<'de> + 'a
+{
+    let message_bus = MessageBus::<T>::new();
     let server = TcpListener::bind("localhost:8876").unwrap();
-    thread::spawn(|| handle_client(server));
+
+    let mb = message_bus.clone();
+    thread::spawn(move || handle_connections(server, mb));
 
     commands.init_resource::<MessageBus<u32>>();
+    commands.insert_resource(message_bus);
     Ok(())
 }
 

@@ -1,8 +1,10 @@
 mod error;
 mod websocket;
+mod types;
 
 use bevy::{prelude::*, utils, window::PrimaryWindow, winit::WinitWindows};
 use error::Error;
+use types::EditorCommand;
 use wry::{WebView, WebViewBuilder};
 
 type Result<T> = std::result::Result<T, Error>;
@@ -26,7 +28,7 @@ impl Plugin for BevyWryPlugin {
         app.insert_resource(self.clone())
             .init_non_send_resource::<Option<WebView>>()
             .add_systems(Startup, setup_webview.map(utils::error))
-            .add_systems(Startup, websocket::setup_websocket.map(utils::error));
+            .add_systems(Startup, websocket::setup_websocket::<EditorCommand>.map(utils::error));
     }
 }
 
