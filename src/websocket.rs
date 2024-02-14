@@ -11,9 +11,17 @@ pub enum Error {
     FailedToBincTcpListener(#[from] AddrParseError),
 }
 
-#[derive(Resource, Default, Debug)]
+#[derive(Resource, Debug)]
 pub struct MessageBus<T: Send> {
     messages: Arc<Mutex<Vec<T>>>,
+}
+
+impl<T: Send> Default for MessageBus<T> {
+    fn default() -> Self {
+        Self {
+            messages: Arc::new(Mutex::new(Vec::<T>::new())),
+        }
+    }
 }
 
 impl<T: Send> Clone for MessageBus<T> {
@@ -36,18 +44,15 @@ impl<'a, T: Send> MessageBus<T> {
     }
 }
 
-pub fn setup_websocket<'a, T: Send + 'static>(mut commands: Commands) -> Result<(), Error>
+pub fn setup_websocket<'a, T: Send + 'static>(message_bus: MessageBus<T>) -> Result<(), Error>
 where
     for<'de> T: Deserialize<'de> + 'a,
 {
-    let message_bus = MessageBus::<T>::new();
     let server = TcpListener::bind("localhost:8876").unwrap();
 
     let mb = message_bus.clone();
     thread::spawn(move || handle_connections(server, mb));
 
-    commands.init_resource::<MessageBus<u32>>();
-    commands.insert_resource(message_bus);
     Ok(())
 }
 
@@ -76,7 +81,6 @@ where
                     let decoded: T = serde_json::from_str(&json).unwrap();
                     let mut msg_bus = message_bus.lock().unwrap();
                     msg_bus.push(decoded);
-                    println!("len: {}", msg_bus.len())
                 }
                 tungstenite::Message::Binary(_) => todo!(),
                 tungstenite::Message::Ping(_) => todo!(),
