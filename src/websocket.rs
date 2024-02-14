@@ -5,8 +5,6 @@ use std::sync::{Arc, LockResult, Mutex, MutexGuard};
 use std::thread;
 use thiserror;
 
-use crate::types::EditorCommand;
-
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("Failed to parse address: {0}")]
@@ -36,6 +34,21 @@ impl<'a, T: Send> MessageBus<T> {
     pub fn lock(&mut self) -> LockResult<MutexGuard<'_, Vec<T>>> {
         self.messages.lock()
     }
+}
+
+pub fn setup_websocket<'a, T: Send + 'static>(mut commands: Commands) -> Result<(), Error>
+where
+    for<'de> T: Deserialize<'de> + 'a,
+{
+    let message_bus = MessageBus::<T>::new();
+    let server = TcpListener::bind("localhost:8876").unwrap();
+
+    let mb = message_bus.clone();
+    thread::spawn(move || handle_connections(server, mb));
+
+    commands.init_resource::<MessageBus<u32>>();
+    commands.insert_resource(message_bus);
+    Ok(())
 }
 
 fn handle_connections<'a, T: Send + 'static>(server: TcpListener, message_bus: MessageBus<T>)
@@ -74,19 +87,4 @@ where
             Err(_) => todo!(),
         }
     }
-}
-
-pub fn setup_websocket<'a, T: Send + 'static>(mut commands: Commands) -> Result<(), Error>
-where
-    for<'de> T: Deserialize<'de> + 'a,
-{
-    let message_bus = MessageBus::<T>::new();
-    let server = TcpListener::bind("localhost:8876").unwrap();
-
-    let mb = message_bus.clone();
-    thread::spawn(move || handle_connections(server, mb));
-
-    commands.init_resource::<MessageBus<u32>>();
-    commands.insert_resource(message_bus);
-    Ok(())
 }

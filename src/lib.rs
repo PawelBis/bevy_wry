@@ -1,6 +1,6 @@
 mod error;
-mod types;
-mod websocket;
+pub mod types;
+pub mod websocket;
 
 use bevy::{prelude::*, utils, window::PrimaryWindow, winit::WinitWindows};
 use error::Error;
