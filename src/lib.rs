@@ -4,7 +4,7 @@ pub mod websocket;
 use bevy::{prelude::*, utils, window::PrimaryWindow, winit::WinitWindows};
 use error::Error;
 use serde::Deserialize;
-use websocket::{setup_websocket, MessageBus};
+use websocket::{produce_events, setup_websocket, MessageBus};
 use wry::{WebView, WebViewBuilder};
 
 type Result<T> = std::result::Result<T, Error>;
@@ -26,14 +26,20 @@ pub struct UrlResource(pub String);
 /// Wry window is allways spawned as a child of `PrimaryWindow`, otherwise
 /// transparency in the webview will be broken.
 #[derive(Resource, Clone, Default)]
-pub struct BevyWryPlugin<T: Send + 'static + Clone> {
+pub struct BevyWryPlugin<T>
+where
+    T: Send + Clone + Event + 'static,
+{
     /// WebView will be initialised with this url
     /// Additionally it will be stored via `insert_resource`
     pub url: UrlResource,
     message_bus: MessageBus<T>,
 }
 
-impl<T: Send + 'static + Clone> BevyWryPlugin<T> {
+impl<T> BevyWryPlugin<T>
+where
+    T: Send + Clone + Event + 'static,
+{
     pub fn new(url: impl Into<String>) -> Self {
         Self {
             url: UrlResource(url.into()),
@@ -42,19 +48,23 @@ impl<T: Send + 'static + Clone> BevyWryPlugin<T> {
     }
 }
 
-impl<'a, T: Send + 'static + Clone> Plugin for BevyWryPlugin<T>
+impl<'a, T> Plugin for BevyWryPlugin<T>
 where
+    T: Send + Clone + Event + 'static,
     for<'de> T: Deserialize<'de> + 'a,
 {
     fn build(&self, app: &mut App) {
         app.insert_resource(self.clone())
+            .add_event::<T>()
             .init_non_send_resource::<Option<WebView>>()
-            .add_systems(Startup, setup_webview::<T>.map(utils::error));
+            .add_systems(Startup, setup_webview::<T>.map(utils::error))
+            .add_systems(Update, produce_events::<T>);
     }
 }
 
-fn setup_webview<'a, T: Send + 'static + Clone>(world: &mut World) -> Result<()>
+fn setup_webview<'a, T>(world: &mut World) -> Result<()>
 where
+    T: Send + Clone + Event + 'static,
     for<'de> T: Deserialize<'de> + 'a,
 {
     let wry_config = world

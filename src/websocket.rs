@@ -39,7 +39,7 @@ impl<'a, T: Send> MessageBus<T> {
         }
     }
 
-    pub fn lock(&mut self) -> LockResult<MutexGuard<'_, Vec<T>>> {
+    fn lock(&mut self) -> LockResult<MutexGuard<'_, Vec<T>>> {
         self.messages.lock()
     }
 }
@@ -90,5 +90,18 @@ where
             },
             Err(_) => todo!(),
         }
+    }
+}
+
+pub fn produce_events<'a, T: Send + Event>(
+    mut message_bus: ResMut<MessageBus<T>>,
+    mut events: EventWriter<T>,
+) where
+    for<'de> T: Deserialize<'de> + 'a,
+{
+    let messages = { message_bus.lock().unwrap().split_off(0) };
+
+    for msg in messages {
+        events.send(msg);
     }
 }
