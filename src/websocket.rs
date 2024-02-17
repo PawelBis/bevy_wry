@@ -1,9 +1,10 @@
+use crate::communication::MessageBus;
 use bevy::prelude::*;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::net::{AddrParseError, TcpListener, TcpStream};
-use std::sync::{Arc, LockResult, Mutex, MutexGuard};
 use std::thread;
 use thiserror;
+use tungstenite::{Message, WebSocket};
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -11,97 +12,133 @@ pub enum Error {
     FailedToBincTcpListener(#[from] AddrParseError),
 }
 
-#[derive(Resource, Debug)]
-pub struct MessageBus<T: Send> {
-    messages: Arc<Mutex<Vec<T>>>,
-}
-
-impl<T: Send> Default for MessageBus<T> {
-    fn default() -> Self {
-        Self {
-            messages: Arc::new(Mutex::new(Vec::<T>::new())),
-        }
-    }
-}
-
-impl<T: Send> Clone for MessageBus<T> {
-    fn clone(&self) -> Self {
-        Self {
-            messages: self.messages.clone(),
-        }
-    }
-}
-
-impl<'a, T: Send> MessageBus<T> {
-    pub fn new() -> Self {
-        MessageBus {
-            messages: Arc::new(Mutex::new(Vec::new())),
-        }
-    }
-
-    fn lock(&mut self) -> LockResult<MutexGuard<'_, Vec<T>>> {
-        self.messages.lock()
-    }
-}
-
-pub fn setup_websocket<'a, T: Send + 'static>(message_bus: MessageBus<T>) -> Result<(), Error>
+pub fn setup_tcp_listener<In, Out>(
+    in_bus: MessageBus<In>,
+    out_bus: MessageBus<Out>,
+) -> Result<(), Error>
 where
-    for<'de> T: Deserialize<'de> + 'a,
+    In: Event,
+    for<'de> In: Deserialize<'de>,
+    Out: Event + Serialize + Clone,
 {
     let server = TcpListener::bind("localhost:8876").unwrap();
+    server.set_nonblocking(true).unwrap();
 
-    let mb = message_bus.clone();
-    thread::spawn(move || handle_connections(server, mb));
+    let ib = in_bus.clone();
+    let ob = out_bus.clone();
+    thread::spawn(move || handle_connections(server, ib, ob));
 
     Ok(())
 }
 
-fn handle_connections<'a, T: Send + 'static>(server: TcpListener, message_bus: MessageBus<T>)
-where
-    for<'de> T: Deserialize<'de> + 'a,
+fn handle_connections<In, Out>(
+    server: TcpListener,
+    in_bus: MessageBus<In>,
+    out_bus: MessageBus<Out>,
+) where
+    In: Event,
+    for<'de> In: Deserialize<'de>,
+    Out: Event + Serialize + Clone,
 {
-    for stream in server.incoming() {
-        let mb = message_bus.clone();
-        thread::spawn(move || match stream {
-            Ok(s) => handle_client(s, mb),
-            Err(e) => println!("{:?}", e),
-        });
-    }
-}
-
-fn handle_client<'a, T: Send>(stream: TcpStream, mut message_bus: MessageBus<T>)
-where
-    for<'de> T: Deserialize<'de> + 'a,
-{
-    let mut socket = tungstenite::accept(stream).unwrap();
     loop {
-        match socket.read() {
-            Ok(msg) => match msg {
-                tungstenite::Message::Text(json) => {
-                    let decoded: T = serde_json::from_str(&json).unwrap();
-                    let mut msg_bus = message_bus.lock().unwrap();
-                    msg_bus.push(decoded);
+        for stream in server.incoming() {
+            let ib = in_bus.clone();
+            let ob = out_bus.clone();
+            thread::spawn(move || {
+                if let Ok(s) = stream {
+                    handle_client(s, ib, ob)
                 }
-                tungstenite::Message::Binary(_) => todo!(),
-                tungstenite::Message::Ping(_) => todo!(),
-                tungstenite::Message::Pong(_) => todo!(),
-                tungstenite::Message::Close(_) => todo!(),
-                tungstenite::Message::Frame(_) => todo!(),
-            },
-            Err(_) => todo!(),
+            });
         }
     }
 }
 
-pub fn produce_events<'a, T: Send + Event>(
-    mut message_bus: ResMut<MessageBus<T>>,
-    mut events: EventWriter<T>,
-) where
-    for<'de> T: Deserialize<'de> + 'a,
+/// Accept incoming connections and spawn thread reading/writing to websocket.
+/// This fn assumes that 'TcpListener' is running in 'non_blocking' mode.
+fn handle_client<In, Out>(stream: TcpStream, in_bus: MessageBus<In>, out_bus: MessageBus<Out>)
+where
+    In: Event,
+    for<'de> In: Deserialize<'de>,
+    Out: Event + Serialize + Clone,
 {
+    let mut socket = loop {
+        match tungstenite::accept(&stream) {
+            Ok(socket) => break socket,
+            Err(e) => match e {
+                tungstenite::HandshakeError::Interrupted(_) => (),
+                tungstenite::HandshakeError::Failure(_) => panic!("Websocket Handshake failed"),
+            },
+        };
+    };
+
+    loop {
+        if try_read_messages(&mut socket, &in_bus) {
+            break;
+        }
+        try_write_messages(&mut socket, &out_bus);
+    }
+}
+
+fn try_read_messages<In>(socket: &mut WebSocket<&TcpStream>, in_bus: &MessageBus<In>) -> bool
+where
+    In: Event,
+    for<'de> In: Deserialize<'de>,
+{
+    if let Ok(msg) = socket.read() {
+        match msg {
+            Message::Text(json) => {
+                let decoded: In = serde_json::from_str(&json).unwrap();
+                let mut msg_bus = in_bus.lock().unwrap();
+                msg_bus.push(decoded);
+            }
+            Message::Binary(_) => todo!(),
+            Message::Close(_) => return true,
+            Message::Ping(_) | Message::Pong(_) | Message::Frame(_) => (),
+        }
+    }
+
+    false
+}
+
+fn try_write_messages<Out: Event + Serialize + Clone>(
+    socket: &mut WebSocket<&TcpStream>,
+    out_bus: &MessageBus<Out>,
+) {
+    let out_events = match out_bus.try_lock() {
+        Ok(mut lock) => Some(lock.split_off(0)),
+        Err(e) => match e {
+            std::sync::TryLockError::Poisoned(_) => panic!("Poisoned mutex"),
+            std::sync::TryLockError::WouldBlock => None,
+        },
+    };
+
+    if let Some(events) = out_events {
+        for e in events {
+            let e_json = serde_json::to_string(&e).unwrap();
+            socket.send(Message::Text(e_json)).unwrap();
+        }
+    }
+}
+
+pub fn consume_incoming_messages<T: Event>(
+    message_bus: ResMut<MessageBus<T>>,
+    mut events: EventWriter<T>,
+) {
     let messages = { message_bus.lock().unwrap().split_off(0) };
 
     for msg in messages {
         events.send(msg);
+    }
+}
+
+pub fn send_outgoing_messages<T: Event + Clone>(
+    message_bus: ResMut<MessageBus<T>>,
+    mut events: EventReader<T>,
+) {
+    let mut messages = message_bus.lock().unwrap();
+
+    for e in events.read() {
+        let ce = e.clone();
+        messages.push(ce);
     }
 }

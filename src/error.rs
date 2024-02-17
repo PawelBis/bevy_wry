@@ -9,7 +9,7 @@ pub enum Error {
     #[error("failed to get main window")]
     FailedToGetMainWindow,
     #[error("wry error: {0}")]
-    WryError(#[from] wry::Error),
+    Wry(#[from] wry::Error),
     #[error("websocket error: {0}")]
-    WebsocketError(#[from] websocket::Error),
+    Websocket(#[from] websocket::Error),
 }

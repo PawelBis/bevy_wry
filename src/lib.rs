@@ -1,10 +1,12 @@
+pub mod communication;
 mod error;
 pub mod websocket;
 
 use bevy::{prelude::*, utils, window::PrimaryWindow, winit::WinitWindows};
+use communication::{InEvent, MessageBus, OutEvent};
 use error::Error;
-use serde::Deserialize;
-use websocket::{produce_events, setup_websocket, MessageBus};
+use serde::{Deserialize, Serialize};
+use websocket::{consume_incoming_messages, setup_tcp_listener};
 use wry::{WebView, WebViewBuilder};
 
 type Result<T> = std::result::Result<T, Error>;
@@ -18,57 +20,85 @@ impl ScaleFactor {
     }
 }
 
-/// Resource storing url data.
-/// We use const generics here, so we can query urls separately
+/// Resource storing url used by webview.
+/// This can be modified to change the url at runtime.
 #[derive(Resource, Deref, Clone, Default)]
 pub struct UrlResource(pub String);
 
+#[allow(unused)]
+pub type SymmetricWryPlugin<E> = BevyWryPlugin<InEvent<E>, OutEvent<E>>;
+
 /// Wry window is allways spawned as a child of `PrimaryWindow`, otherwise
 /// transparency in the webview will be broken.
-#[derive(Resource, Clone, Default)]
-pub struct BevyWryPlugin<T>
+#[derive(Resource, Default)]
+pub struct BevyWryPlugin<In, Out>
 where
-    T: Send + Clone + Event + 'static,
+    In: Event,
+    for<'de> In: Deserialize<'de>,
+    // TODO: Use resource for Out events, so we can move instead of cloning
+    Out: Event + Serialize + Clone,
 {
-    /// WebView will be initialised with this url
-    /// Additionally it will be stored via `insert_resource`
+    /// Url loaded in the webview, stored in the 'UrlResource'
     pub url: UrlResource,
-    message_bus: MessageBus<T>,
+    /// Message bus used for incoming messages
+    in_message_bus: MessageBus<In>,
+    /// Message bus used for outgoing messages
+    out_message_bus: MessageBus<Out>,
 }
 
-impl<T> BevyWryPlugin<T>
+impl<In, Out> Clone for BevyWryPlugin<In, Out>
 where
-    T: Send + Clone + Event + 'static,
+    In: Event,
+    for<'de> In: Deserialize<'de>,
+    Out: Event + Serialize + Clone,
 {
-    pub fn new(url: impl Into<String>) -> Self {
+    fn clone(&self) -> Self {
         Self {
-            url: UrlResource(url.into()),
-            message_bus: MessageBus::<T>::default(),
+            url: self.url.clone(),
+            in_message_bus: self.in_message_bus.clone(),
+            out_message_bus: self.out_message_bus.clone(),
         }
     }
 }
 
-impl<'a, T> Plugin for BevyWryPlugin<T>
+impl<In, Out> BevyWryPlugin<In, Out>
 where
-    T: Send + Clone + Event + 'static,
-    for<'de> T: Deserialize<'de> + 'a,
+    In: Event,
+    for<'de> In: Deserialize<'de>,
+    Out: Event + Serialize + Clone,
 {
-    fn build(&self, app: &mut App) {
-        app.insert_resource(self.clone())
-            .add_event::<T>()
-            .init_non_send_resource::<Option<WebView>>()
-            .add_systems(Startup, setup_webview::<T>.map(utils::error))
-            .add_systems(Update, produce_events::<T>);
+    pub fn new(url: impl Into<String>) -> Self {
+        Self {
+            url: UrlResource(url.into()),
+            in_message_bus: MessageBus::<In>::default(),
+            out_message_bus: MessageBus::<Out>::default(),
+        }
     }
 }
 
-fn setup_webview<'a, T>(world: &mut World) -> Result<()>
+impl<In, Out> Plugin for BevyWryPlugin<In, Out>
 where
-    T: Send + Clone + Event + 'static,
-    for<'de> T: Deserialize<'de> + 'a,
+    In: Event,
+    for<'de> In: Deserialize<'de>,
+    Out: Event + Serialize + Clone,
+{
+    fn build(&self, app: &mut App) {
+        app.insert_resource(self.clone())
+            .add_event::<In>()
+            .init_non_send_resource::<Option<WebView>>()
+            .add_systems(Startup, setup_webview::<In, Out>.map(utils::error))
+            .add_systems(Update, consume_incoming_messages::<In>);
+    }
+}
+
+fn setup_webview<In, Out>(world: &mut World) -> Result<()>
+where
+    In: Event,
+    for<'de> In: Deserialize<'de>,
+    Out: Event + Serialize + Clone,
 {
     let wry_config = world
-        .remove_resource::<BevyWryPlugin<T>>()
+        .remove_resource::<BevyWryPlugin<In, Out>>()
         .ok_or_else(|| Error::MissingResource("BevyWryPlugin".to_owned()))?;
 
     let primary_window_entity = world
@@ -92,13 +122,20 @@ where
             height: 1000,
         })
         .build()?;
-    let message_bus = wry_config.message_bus;
+
+    let in_bus = wry_config.in_message_bus;
+    let in_bus_resource = in_bus.clone();
+    world.insert_resource(in_bus_resource);
+
+    let out_bus = wry_config.out_message_bus;
+    let out_bus_resource = out_bus.clone();
+    world.insert_resource(out_bus_resource);
+
     world.insert_resource(wry_config.url);
-    world.insert_resource(message_bus.clone());
     world.insert_resource(ScaleFactor(scale_factor));
     world.insert_non_send_resource(webview);
 
-    setup_websocket(message_bus)?;
+    setup_tcp_listener(in_bus, out_bus)?;
 
     Ok(())
 }
