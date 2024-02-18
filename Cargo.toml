@@ -1,6 +1,6 @@
 [package]
 name = "bevy_wry"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2021"
 categories = ["bevy-plugin", "gui"]
 description = "A tauri-apps/wry integration with Bevy engine"
@@ -12,8 +12,8 @@ repository = "https://github.com/PawelBis/bevy_wry"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-wry = { version = "0.35", features = ["transparent", "devtools"] }
-bevy = { version = "0.12", default_features = false, features = ["bevy_winit"] }
+wry = { version = "0.36", features = ["transparent", "devtools"] }
+bevy = { version = "0.13", default_features = false, features = ["bevy_winit"] }
 winit = "0.29"
 thiserror = "1.0"
 tungstenite = "0.21"
