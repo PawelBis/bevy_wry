@@ -1,3 +1,7 @@
-This [bevy](https://github.com/bevyengine/bevy/) plugin provides a simple integration with [wry](https://github.com/tauri-apps/wry), used by [bewry](https://github.com/PawelBis/bewry) - webview based editor for bevy.
+# About
 
-It doesn't come with any way for bevy <-> webview communication. It's up to you.
+'bevy_wry' is a [bevy](https://github.com/bevyengine/bevy/) plugin that provides integration with [wry](https://github.com/tauri-apps/wry) - cross platform webview rendering library written in rust.
+
+'bevy_wry' enables [bevy::Event](https://docs.rs/bevy/latest/bevy/ecs/event/trait.Event.html) based communication with WebView.
+
+Examples coming soon.
