@@ -6,7 +6,7 @@ use bevy::{prelude::*, utils, window::PrimaryWindow, winit::WinitWindows};
 use communication::{DeserializeMessage, InEvent, MessageBus, OutEvent, SerializeMessage};
 use error::Error;
 use serde::{Deserialize, Serialize};
-use websocket::{consume_incoming_messages, setup_tcp_listener};
+use websocket::{consume_incoming_messages, setup_tcp_listener, send_outgoing_messages};
 use wry::{WebView, WebViewBuilder};
 
 type Result<T> = std::result::Result<T, Error>;
@@ -28,11 +28,8 @@ pub struct UrlResource(pub String);
 /// Convenience wrapper allowing usage of the same type for both in and out events.
 ///
 /// See [BevyWryPlugin]
-///
-/// Please note that events are wrapped in [InEvent] or [OutEvent] helpers.
-/// Both wrappers are serialising/deserialising to underlying type.
 #[allow(unused)]
-pub type SymmetricWryPlugin<E> = BevyWryPlugin<InEvent<E>, OutEvent<E>>;
+pub type SymmetricWryPlugin<E> = BevyWryPlugin<E, E>;
 
 /// Convenience wrapper for when you don't care about communication with [WebView]
 ///
@@ -41,8 +38,9 @@ pub type NakedWryPlugin = BevyWryPlugin<InEvent<()>, OutEvent<()>>;
 
 /// Creates a [WebView] window that can be used for both in game and editor UI rendering.
 ///
-/// Communication with webview windows is done via [tungstenite::WebSocket]. You can send events to
-/// webview via [EventWriter]<Out> and read incoming events with [EventReader]<In>.
+/// Communication with webview windows is done via [tungstenite::WebSocket]. You can send
+/// events to webview via [EventWriter]<OutEvent<Out>> and read incoming events with 
+/// [EventReader]<InEvent<In>>.
 ///
 /// Please note that at the moment of writing this plugin relies heavily on [serde_json].
 #[derive(Default, Resource)]
@@ -56,10 +54,10 @@ where
     pub url: UrlResource,
     /// [MessageBus] in which incoming messages are stored. All messages are transformed into [In]
     /// events.
-    in_message_bus: MessageBus<In>,
+    in_message_bus: MessageBus<InEvent<In>>,
     /// [MessageBus] in which outcoming messages are stored. This message bus is populated with
     /// events produced by [EventWriter]<Out>
-    out_message_bus: MessageBus<Out>,
+    out_message_bus: MessageBus<OutEvent<Out>>,
 }
 
 impl<In, Out> Clone for BevyWryPlugin<In, Out>
@@ -86,8 +84,8 @@ where
     pub fn new(url: impl Into<String>) -> Self {
         Self {
             url: UrlResource(url.into()),
-            in_message_bus: MessageBus::<In>::default(),
-            out_message_bus: MessageBus::<Out>::default(),
+            in_message_bus: MessageBus::<InEvent<In>>::default(),
+            out_message_bus: MessageBus::<OutEvent<Out>>::default(),
         }
     }
 }
@@ -100,10 +98,12 @@ where
 {
     fn build(&self, app: &mut App) {
         app.insert_resource(self.clone())
-            .add_event::<In>()
+            .add_event::<InEvent<In>>()
+            .add_event::<OutEvent<Out>>()
             .init_non_send_resource::<Option<WebView>>()
             .add_systems(Startup, setup_webview::<In, Out>.map(utils::error))
-            .add_systems(Update, consume_incoming_messages::<In>);
+            .add_systems(Update, consume_incoming_messages::<InEvent<In>>)
+            .add_systems(Update, send_outgoing_messages::<OutEvent<Out>>);
     }
 }
 
