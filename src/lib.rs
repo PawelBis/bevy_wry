@@ -3,7 +3,7 @@ mod error;
 pub mod websocket;
 
 use bevy::{prelude::*, utils, window::PrimaryWindow, winit::WinitWindows};
-use communication::{InEvent, MessageBus, OutEvent};
+use communication::{DeserializeMessage, InEvent, MessageBus, OutEvent, SerializeMessage};
 use error::Error;
 use serde::{Deserialize, Serialize};
 use websocket::{consume_incoming_messages, setup_tcp_listener};
@@ -48,10 +48,9 @@ pub type NakedWryPlugin = BevyWryPlugin<InEvent<()>, OutEvent<()>>;
 #[derive(Default, Resource)]
 pub struct BevyWryPlugin<In, Out>
 where
-    In: Event,
-    for<'de> In: Deserialize<'de>,
+    In: Event + DeserializeMessage<Event = In>,
     // TODO: Use resource for Out events, so we can move instead of cloning
-    Out: Event + Serialize + Clone,
+    Out: Event + Clone + SerializeMessage,
 {
     /// Url loaded in the webview, stored in the 'UrlResource'
     pub url: UrlResource,

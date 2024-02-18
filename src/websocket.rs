@@ -1,4 +1,4 @@
-use crate::communication::MessageBus;
+use crate::communication::{DeserializeMessage, MessageBus, SerializeMessage};
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::net::{AddrParseError, TcpListener, TcpStream};
@@ -81,13 +81,12 @@ where
 
 fn try_read_messages<In>(socket: &mut WebSocket<&TcpStream>, in_bus: &MessageBus<In>) -> bool
 where
-    In: Event,
-    for<'de> In: Deserialize<'de>,
+    In: Event + DeserializeMessage<Event = In>,
 {
     if let Ok(msg) = socket.read() {
         match msg {
-            Message::Text(json) => {
-                let decoded: In = serde_json::from_str(&json).unwrap();
+            Message::Text(string) => {
+                let decoded = In::from_string(string).unwrap();
                 let mut msg_bus = in_bus.lock().unwrap();
                 msg_bus.push(decoded);
             }
@@ -100,10 +99,10 @@ where
     false
 }
 
-fn try_write_messages<Out: Event + Serialize + Clone>(
-    socket: &mut WebSocket<&TcpStream>,
-    out_bus: &MessageBus<Out>,
-) {
+fn try_write_messages<Out>(socket: &mut WebSocket<&TcpStream>, out_bus: &MessageBus<Out>)
+where
+    Out: Event + SerializeMessage + Clone,
+{
     let out_events = match out_bus.try_lock() {
         Ok(mut lock) => Some(lock.split_off(0)),
         Err(e) => match e {
@@ -114,8 +113,8 @@ fn try_write_messages<Out: Event + Serialize + Clone>(
 
     if let Some(events) = out_events {
         for e in events {
-            let e_json = serde_json::to_string(&e).unwrap();
-            socket.send(Message::Text(e_json)).unwrap();
+            let json = e.to_string().unwrap();
+            socket.send(Message::Text(json)).unwrap();
         }
     }
 }
