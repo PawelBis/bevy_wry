@@ -20,17 +20,32 @@ impl ScaleFactor {
     }
 }
 
-/// Resource storing url used by webview.
-/// This can be modified to change the url at runtime.
+/// [Resource] storing url used by [WebView].
+// TODO: This can be modified to change the url at runtime.
 #[derive(Resource, Deref, Clone, Default)]
 pub struct UrlResource(pub String);
 
+/// Convenience wrapper allowing usage of the same type for both in and out events.
+///
+/// See [BevyWryPlugin]
+///
+/// Please note that events are wrapped in [InEvent] or [OutEvent] helpers.
+/// Both wrappers are serialising/deserialising to underlying type.
 #[allow(unused)]
 pub type SymmetricWryPlugin<E> = BevyWryPlugin<InEvent<E>, OutEvent<E>>;
 
-/// Wry window is allways spawned as a child of `PrimaryWindow`, otherwise
-/// transparency in the webview will be broken.
-#[derive(Resource, Default)]
+/// Convenience wrapper for when you don't care about communication with [WebView]
+///
+/// See [BevyWryPlugin].
+pub type NakedWryPlugin = BevyWryPlugin<InEvent<()>, OutEvent<()>>;
+
+/// Creates a [WebView] window that can be used for both in game and editor UI rendering.
+///
+/// Communication with webview windows is done via [tungstenite::WebSocket]. You can send events to
+/// webview via [EventWriter]<Out> and read incoming events with [EventReader]<In>.
+///
+/// Please note that at the moment of writing this plugin relies heavily on [serde_json].
+#[derive(Default, Resource)]
 pub struct BevyWryPlugin<In, Out>
 where
     In: Event,
@@ -40,9 +55,11 @@ where
 {
     /// Url loaded in the webview, stored in the 'UrlResource'
     pub url: UrlResource,
-    /// Message bus used for incoming messages
+    /// [MessageBus] in which incoming messages are stored. All messages are transformed into [In]
+    /// events.
     in_message_bus: MessageBus<In>,
-    /// Message bus used for outgoing messages
+    /// [MessageBus] in which outcoming messages are stored. This message bus is populated with
+    /// events produced by [EventWriter]<Out>
     out_message_bus: MessageBus<Out>,
 }
 
