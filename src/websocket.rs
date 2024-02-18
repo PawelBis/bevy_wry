@@ -89,11 +89,16 @@ where
 {
     match socket.read() {
         Ok(msg) => {
-            let decoded_event = match msg {
-                Message::Text(string) => InEvent::Text(string),
-                Message::Binary(buffer) => InEvent::Event(In::from_binary(buffer).unwrap()),
-                Message::Close(_) => return true,
-                Message::Ping(_) | Message::Pong(_) | Message::Frame(_) => return false,
+            let decoded_event: InEvent<In> = match msg.try_into() {
+                Ok(event) => event,
+                Err(error) => match error {
+                    // Ping/Pong/Frame cannot be deserialised into Event,
+                    // but we don't have to handle those messages anyway so we can skip
+                    crate::communication::Error::BadMessageType => return false,
+                    crate::communication::Error::Bincode(_)
+                    | crate::communication::Error::Deserialize
+                    | crate::communication::Error::CloseRequested => return true,
+                },
             };
 
             let mut msg_bus = in_bus.lock();
@@ -123,13 +128,15 @@ where
 
     if let Some(events) = out_events {
         for e in events {
-            match e {
-                OutEvent::Text(t) => socket.send(Message::Text(t)).unwrap(),
-                OutEvent::Event(e) => {
-                    let decoded = e.to_binary().unwrap();
-                    socket.send(Message::Binary(decoded)).unwrap();
+            let msg = match TryInto::<Message>::try_into(e) {
+                Ok(msg) => msg,
+                Err(error) => {
+                    error!("{:?}", error);
+                    return;
                 }
             };
+
+            socket.send(msg).unwrap();
         }
     }
 }

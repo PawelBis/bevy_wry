@@ -6,7 +6,7 @@ use bevy::{prelude::*, utils, window::PrimaryWindow, winit::WinitWindows};
 use communication::{DeserializeMessage, InEvent, MessageBus, OutEvent, SerializeMessage};
 use error::Error;
 use serde::{Deserialize, Serialize};
-use websocket::{consume_incoming_messages, setup_tcp_listener, send_outgoing_messages};
+use websocket::{consume_incoming_messages, send_outgoing_messages, setup_tcp_listener};
 use wry::{WebView, WebViewBuilder};
 
 type Result<T> = std::result::Result<T, Error>;
@@ -39,7 +39,7 @@ pub type NakedWryPlugin = BevyWryPlugin<InEvent<()>, OutEvent<()>>;
 /// Creates a [WebView] window that can be used for both in game and editor UI rendering.
 ///
 /// Communication with webview windows is done via [tungstenite::WebSocket]. You can send
-/// events to webview via [EventWriter]<OutEvent<Out>> and read incoming events with 
+/// events to webview via [EventWriter]<OutEvent<Out>> and read incoming events with
 /// [EventReader]<InEvent<In>>.
 ///
 /// Please note that at the moment of writing this plugin relies heavily on [serde_json].
