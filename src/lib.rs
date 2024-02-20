@@ -6,7 +6,6 @@ pub mod webview;
 use bevy::{prelude::*, utils, window::PrimaryWindow, winit::WinitWindows};
 use communication::{DeserializeMessage, InEvent, MessageBus, OutEvent, SerializeMessage};
 use error::Error;
-use serde::{Deserialize, Serialize};
 use websocket::{consume_incoming_messages, send_outgoing_messages, setup_tcp_listener};
 use webview::{keep_webview_fullscreen, ScaleFactor};
 use wry::{WebView, WebViewBuilder};
@@ -55,9 +54,8 @@ where
 
 impl<In, Out> Clone for BevyWryPlugin<In, Out>
 where
-    In: Event,
-    for<'de> In: Deserialize<'de>,
-    Out: Event + Serialize + Clone,
+    In: Event + DeserializeMessage<Event = In>,
+    Out: Event + Clone + SerializeMessage,
 {
     fn clone(&self) -> Self {
         Self {
@@ -70,9 +68,8 @@ where
 
 impl<In, Out> BevyWryPlugin<In, Out>
 where
-    In: Event,
-    for<'de> In: Deserialize<'de>,
-    Out: Event + Serialize + Clone,
+    In: Event + DeserializeMessage<Event = In>,
+    Out: Event + Clone + SerializeMessage,
 {
     pub fn new(url: impl Into<String>) -> Self {
         Self {
@@ -85,9 +82,8 @@ where
 
 impl<In, Out> Plugin for BevyWryPlugin<In, Out>
 where
-    In: Event,
-    for<'de> In: Deserialize<'de>,
-    Out: Event + Serialize + Clone,
+    In: Event + DeserializeMessage<Event = In>,
+    Out: Event + Clone + SerializeMessage,
 {
     fn build(&self, app: &mut App) {
         app.insert_resource(self.clone())
@@ -103,9 +99,8 @@ where
 
 fn setup_webview<In, Out>(world: &mut World) -> Result<()>
 where
-    In: Event,
-    for<'de> In: Deserialize<'de>,
-    Out: Event + Serialize + Clone,
+    In: Event + DeserializeMessage<Event = In>,
+    Out: Event + Clone + SerializeMessage,
 {
     let wry_config = world
         .remove_resource::<BevyWryPlugin<In, Out>>()

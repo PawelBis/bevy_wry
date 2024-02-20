@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- In proper app use style.css file or other styling format -->
+    <style>
+      html {
+        background-color: transparent;
+      }
+      body {
+        padding: 0;
+        margin: 0;
+        width: 100%;
+        height: 100%;
+      }
+      button {
+        display: inline-block;
+        outline: 0;
+        cursor: pointer;
+        border: none;
+        padding: 0 56px;
+        height: 45px;
+        line-height: 45px;
+        border-radius: 7px;
+        background-color: rgba(0,90,243,1);
+        color: white;
+        font-weight: 400;
+        font-size: 16px;
+        box-shadow: 0 4px 14px 0 rgb(0 118 255 / 39%);
+        transition: background 0.2s ease,color 0.2s ease,box-shadow 0.2s ease;
+      }
+      button:hover{
+        background: rgba(0,118,255,0.9);
+        box-shadow: 0 6px 20px rgb(0 118 255 / 53%);
+      }
+      .disabled {
+        visibility: hidden;
+      }
+      .left {
+        position: fixed;
+        left:10%;
+        top:50%;
+      }
+      .right {
+        position: fixed;
+        right:10%;
+        top:50%;
+      }
+      .center {
+        position: fixed;
+        right: 50%;
+        bottom: 10%;
+      }
+    </style>
+  </head>
+  <body style="background-color:transparent;">
+    <button class="left" onclick=rotate(-30)>
+      Rotate left
+    </button>
+
+    <button class="disabled center" onclick=exit()>
+      Exit
+    </button>
+
+    <button class="right" onclick=rotate(30)>
+      Rotate right
+    </button>
+
+    <!-- In proper application this should be in main.js or main.ts or just file.js -->
+    <script type="text/javascript">
+      let websocket = new WebSocket("ws://localhost:8876");
+      websocket.onopen = () => {
+        websocket.onmessage = read_message
+      }
+
+      function rotate(d) {
+        let rotation_command = {
+          Rotate: {
+            angle: -d,
+          }
+        }
+        websocket.send(JSON.stringify(rotation_command));
+      }
+
+      function exit() {
+        let msg = "Exit";
+        websocket.send(JSON.stringify(msg))
+      }
+      
+      function read_message(m) {
+        let event = JSON.parse(m.data)
+        if (event === "ShowButton") {
+          const buttons = document.getElementsByClassName("disabled");
+          for (let i = 0; i < buttons.length; i++) {
+            let b = buttons.item(i);
+            b.classList.remove("disabled");
+          }
+        }
+      }
+    </script>
+  </body>
+</html>

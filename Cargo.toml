@@ -1,6 +1,6 @@
 [package]
 name = "bevy_wry"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2021"
 categories = ["bevy-plugin", "gui"]
 description = "A tauri-apps/wry integration with Bevy engine"
@@ -13,7 +13,7 @@ repository = "https://github.com/PawelBis/bevy_wry"
 
 [dependencies]
 wry = { version = "0.36", features = ["transparent", "devtools"] }
-bevy = { version = "0.13", default_features = false, features = ["bevy_winit"] }
+bevy = "0.13"
 winit = "0.29"
 thiserror = "1.0"
 tungstenite = "0.21"
