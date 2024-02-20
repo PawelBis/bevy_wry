@@ -1,24 +1,17 @@
 pub mod communication;
 mod error;
 pub mod websocket;
+pub mod webview;
 
 use bevy::{prelude::*, utils, window::PrimaryWindow, winit::WinitWindows};
 use communication::{DeserializeMessage, InEvent, MessageBus, OutEvent, SerializeMessage};
 use error::Error;
 use serde::{Deserialize, Serialize};
 use websocket::{consume_incoming_messages, send_outgoing_messages, setup_tcp_listener};
+use webview::{keep_webview_fullscreen, ScaleFactor};
 use wry::{WebView, WebViewBuilder};
 
 type Result<T> = std::result::Result<T, Error>;
-
-#[derive(Resource)]
-pub struct ScaleFactor(f64);
-
-impl ScaleFactor {
-    pub fn as_f64(&self) -> f64 {
-        self.0
-    }
-}
 
 /// [Resource] storing url used by [WebView].
 // TODO: This can be modified to change the url at runtime.
@@ -34,7 +27,7 @@ pub type SymmetricWryPlugin<E> = BevyWryPlugin<E, E>;
 /// Convenience wrapper for when you don't care about communication with [WebView]
 ///
 /// See [BevyWryPlugin].
-pub type NakedWryPlugin = BevyWryPlugin<InEvent<()>, OutEvent<()>>;
+pub type NakedWryPlugin = BevyWryPlugin<(), ()>;
 
 /// Creates a [WebView] window that can be used for both in game and editor UI rendering.
 ///
@@ -102,6 +95,7 @@ where
             .add_event::<OutEvent<Out>>()
             .init_non_send_resource::<Option<WebView>>()
             .add_systems(Startup, setup_webview::<In, Out>.map(utils::error))
+            .add_systems(Update, keep_webview_fullscreen)
             .add_systems(Update, consume_incoming_messages::<InEvent<In>>)
             .add_systems(Update, send_outgoing_messages::<OutEvent<Out>>);
     }
@@ -148,7 +142,7 @@ where
     world.insert_resource(out_bus_resource);
 
     world.insert_resource(wry_config.url);
-    world.insert_resource(ScaleFactor(scale_factor));
+    world.insert_resource(ScaleFactor::from(scale_factor));
     world.insert_non_send_resource(webview);
 
     setup_tcp_listener(in_bus, out_bus)?;
