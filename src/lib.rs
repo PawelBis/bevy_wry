@@ -31,8 +31,8 @@ pub type NakedWryPlugin = BevyWryPlugin<(), ()>;
 /// Creates a [WebView] window that can be used for both in game and editor UI rendering.
 ///
 /// Communication with webview windows is done via [tungstenite::WebSocket]. You can send
-/// events to webview via [EventWriter]<OutEvent<Out>> and read incoming events with
-/// [EventReader]<InEvent<In>>.
+/// events to webview via [EventWriter]`<OutEvent<Out>>` and read incoming events with
+/// [EventReader]`<InEvent<In>>`.
 ///
 /// Please note that at the moment of writing this plugin relies heavily on [serde_json].
 #[derive(Default, Resource)]
@@ -48,7 +48,7 @@ where
     /// events.
     in_message_bus: MessageBus<InEvent<In>>,
     /// [MessageBus] in which outcoming messages are stored. This message bus is populated with
-    /// events produced by [EventWriter]<Out>
+    /// events produced by [EventWriter]`<Out>`
     out_message_bus: MessageBus<OutEvent<Out>>,
 }
 
