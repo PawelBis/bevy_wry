@@ -12,25 +12,22 @@ pub enum Error {
     CloseRequested,
 }
 
-#[derive(Event, Clone)]
-pub enum OutEvent<T: Event + Clone + SerializeMessage> {
+#[derive(Event)]
+pub enum OutEvent<T: Event + SerializeMessage> {
     Text(String),
     Event(T),
 }
 
-impl<T> TryInto<Message> for OutEvent<T>
-where
-    T: Event + SerializeMessage + Clone,
-{
-    type Error = Error;
-
-    fn try_into(self) -> Result<Message, Self::Error> {
-        Ok(match self {
-            OutEvent::Text(text) => Message::Text(text),
+impl<T: Event + SerializeMessage> OutEvent<T> {
+    pub fn to_message(&self) -> Result<Message, Error> {
+        let msg = match self {
+            OutEvent::Text(text) => Message::Text(text.clone()),
             OutEvent::Event(event) => {
                 Message::Binary(event.to_binary().map_err(|_| Error::Deserialize)?)
             }
-        })
+        };
+
+        Ok(msg)
     }
 }
 

@@ -14,11 +14,11 @@ pub enum Error {
 
 pub fn setup_tcp_listener<In, Out>(
     in_bus: MessageBus<InEvent<In>>,
-    out_bus: MessageBus<OutEvent<Out>>,
+    out_bus: MessageBus<Message>,
 ) -> Result<(), Error>
 where
     In: Event + DeserializeMessage<Event = In>,
-    Out: Event + SerializeMessage + Clone,
+    Out: Event + SerializeMessage,
 {
     let server = TcpListener::bind("localhost:8876").unwrap();
     server.set_nonblocking(true).unwrap();
@@ -30,21 +30,20 @@ where
     Ok(())
 }
 
-fn handle_connections<In, Out>(
+fn handle_connections<In>(
     server: TcpListener,
     in_bus: MessageBus<InEvent<In>>,
-    out_bus: MessageBus<OutEvent<Out>>,
+    out_bus: MessageBus<Message>,
 ) where
     In: Event + DeserializeMessage<Event = In>,
-    Out: Event + SerializeMessage + Clone,
 {
     loop {
         for stream in server.incoming() {
-            let ib = in_bus.clone();
-            let ob = out_bus.clone();
+            let in_bus = in_bus.clone();
+            let out_bus = out_bus.clone();
             thread::spawn(move || {
-                if let Ok(s) = stream {
-                    handle_client(s, ib, ob)
+                if let Ok(stream) = stream {
+                    handle_client(stream, in_bus, out_bus)
                 }
             });
         }
@@ -53,13 +52,12 @@ fn handle_connections<In, Out>(
 
 /// Accept incoming connections and spawn thread reading/writing to websocket.
 /// This fn assumes that 'TcpListener' is running in 'non_blocking' mode.
-fn handle_client<In, Out>(
+fn handle_client<In>(
     stream: TcpStream,
     in_bus: MessageBus<InEvent<In>>,
-    out_bus: MessageBus<OutEvent<Out>>,
+    out_bus: MessageBus<Message>,
 ) where
     In: Event + DeserializeMessage<Event = In>,
-    Out: Event + SerializeMessage + Clone,
 {
     let mut socket = loop {
         match tungstenite::accept(&stream) {
@@ -114,10 +112,7 @@ where
     false
 }
 
-fn try_write_messages<Out>(socket: &mut WebSocket<&TcpStream>, out_bus: &MessageBus<OutEvent<Out>>)
-where
-    Out: Event + SerializeMessage + Clone,
-{
+fn try_write_messages(socket: &mut WebSocket<&TcpStream>, out_bus: &MessageBus<Message>) {
     let out_events = match out_bus.try_lock() {
         Ok(mut lock) => Some(lock.split_off(0)),
         Err(e) => match e {
@@ -128,15 +123,7 @@ where
 
     if let Some(events) = out_events {
         for e in events {
-            let msg = match TryInto::<Message>::try_into(e) {
-                Ok(msg) => msg,
-                Err(error) => {
-                    error!("{:?}", error);
-                    return;
-                }
-            };
-
-            socket.send(msg).unwrap();
+            socket.send(e).unwrap();
         }
     }
 }
@@ -152,13 +139,13 @@ pub fn consume_incoming_messages<T: Event>(
     }
 }
 
-pub fn send_outgoing_messages<T: Event + Clone>(
-    message_bus: ResMut<MessageBus<T>>,
-    mut events: EventReader<T>,
+pub fn send_outgoing_messages<T: Event + SerializeMessage>(
+    message_bus: ResMut<MessageBus<Message>>,
+    mut events: EventReader<OutEvent<T>>,
 ) {
     let mut messages = message_bus.lock();
 
     for event in events.read() {
-        messages.push(event.clone());
+        messages.push(event.to_message().unwrap());
     }
 }
