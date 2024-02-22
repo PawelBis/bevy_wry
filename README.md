@@ -12,4 +12,5 @@ You can read events incoming from websocket with [`EventReader<InEvent<T>>`](htt
 
 # Example
 
-Check cargo run --example [simple](https://github.com/PawelBis/bevy_wry/blob/main/examples/simple.rs) for a quick reference.
+Check the [simple](https://github.com/PawelBis/bevy_wry/blob/main/examples/simple.rs) example for a quick reference.
+`cargo run --example simple --features="bevy/bevy_core_pipeline bevy/bevy_render bevy/bevy_sprite"`
