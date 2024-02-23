@@ -1,16 +1,8 @@
 use std::sync::{Arc, Mutex, MutexGuard};
 
+use super::Error;
 use bevy::prelude::{Deref, Event, Resource};
-use serde::{Deserialize, Serialize};
 use tungstenite::Message;
-
-#[derive(Debug)]
-pub enum Error {
-    Bincode(bincode::Error),
-    Deserialize,
-    BadMessageType,
-    CloseRequested,
-}
 
 #[derive(Event)]
 pub enum OutEvent<T: Event + SerializeMessage> {
@@ -83,28 +75,8 @@ pub trait DeserializeMessage {
     fn from_binary(_: Vec<u8>) -> Result<Self::Event, Self::Error>;
 }
 
-impl<T> DeserializeMessage for T
-where
-    for<'de> T: Deserialize<'de>,
-{
-    type Error = Error;
-    type Event = Self;
-
-    fn from_binary(buffer: Vec<u8>) -> Result<Self::Event, Self::Error> {
-        bincode::deserialize(&buffer).map_err(Error::Bincode)
-    }
-}
-
 pub trait SerializeMessage {
     type Error: std::fmt::Debug;
 
     fn to_binary(&self) -> Result<Vec<u8>, Self::Error>;
-}
-
-impl<T: Serialize> SerializeMessage for T {
-    type Error = Error;
-
-    fn to_binary(&self) -> Result<Vec<u8>, Self::Error> {
-        bincode::serialize(self).map_err(Error::Bincode)
-    }
 }

@@ -1,6 +1,6 @@
 use bevy::{app::AppExit, prelude::*};
 use bevy_wry::{
-    communication::{InEvent, OutEvent},
+    communication::types::{InEvent, OutEvent},
     BevyWryPlugin,
 };
 use std::env;

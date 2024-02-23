@@ -13,4 +13,7 @@ You can read events incoming from websocket with [`EventReader<InEvent<T>>`](htt
 # Example
 
 Check the [simple](https://github.com/PawelBis/bevy_wry/blob/main/examples/simple.rs) example for a quick reference.
-`cargo run --example simple --features="bevy/bevy_core_pipeline bevy/bevy_render bevy/bevy_sprite"`
+`cargo run --example simple --features="bincode bevy/bevy_core_pipeline bevy/bevy_render bevy/bevy_sprite"`
+
+# Features
+- `bincode` - default bincode `SerializeMessage` and `DeserializeMessage` for types that implement/derive `serde::Serialize` and `serde::Deserialize`.

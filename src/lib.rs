@@ -6,7 +6,7 @@ pub mod webview;
 use std::marker::PhantomData;
 
 use bevy::{prelude::*, utils, window::PrimaryWindow, winit::WinitWindows};
-use communication::{DeserializeMessage, InEvent, MessageBus, OutEvent, SerializeMessage};
+use communication::types::{DeserializeMessage, InEvent, MessageBus, OutEvent, SerializeMessage};
 use error::Error;
 use tungstenite::Message;
 use websocket::{consume_incoming_messages, send_outgoing_messages, setup_tcp_listener};

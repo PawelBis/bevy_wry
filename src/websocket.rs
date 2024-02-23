@@ -1,4 +1,6 @@
-use crate::communication::{DeserializeMessage, InEvent, MessageBus, OutEvent, SerializeMessage};
+use crate::communication::types::{
+    DeserializeMessage, InEvent, MessageBus, OutEvent, SerializeMessage,
+};
 use bevy::prelude::*;
 use std::net::{AddrParseError, TcpListener, TcpStream};
 use std::thread;
@@ -93,9 +95,10 @@ where
                     // Ping/Pong/Frame cannot be deserialised into Event,
                     // but we don't have to handle those messages anyway so we can skip
                     crate::communication::Error::BadMessageType => return false,
-                    crate::communication::Error::Bincode(_)
-                    | crate::communication::Error::Deserialize
+                    crate::communication::Error::Deserialize
                     | crate::communication::Error::CloseRequested => return true,
+                    #[cfg(feature = "bincode")]
+                    crate::communication::Error::Bincode(_) => return true,
                 },
             };
 
