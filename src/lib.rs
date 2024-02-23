@@ -36,8 +36,6 @@ pub type NakedWryPlugin = BevyWryPlugin<(), ()>;
 /// Communication with webview windows is done via [tungstenite::WebSocket]. You can send
 /// events to webview via [EventWriter]`<OutEvent<Out>>` and read incoming events with
 /// [EventReader]`<InEvent<In>>`.
-///
-/// Please note that at the moment of writing this plugin relies heavily on [serde_json].
 #[derive(Default, Resource)]
 pub struct BevyWryPlugin<In, Out>
 where
