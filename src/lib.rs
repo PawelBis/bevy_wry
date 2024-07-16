@@ -11,7 +11,8 @@ use error::Error;
 use tungstenite::Message;
 use websocket::{consume_incoming_messages, send_outgoing_messages, setup_tcp_listener};
 use webview::{keep_webview_fullscreen, ScaleFactor};
-use wry::{WebView, WebViewBuilder};
+use wry::dpi::{PhysicalPosition, PhysicalSize, Position, Size};
+use wry::{Rect, WebView, WebViewBuilder};
 
 type Result<T> = std::result::Result<T, Error>;
 
@@ -123,12 +124,10 @@ where
 
     let webview = WebViewBuilder::new_as_child(primary_window)
         .with_transparent(true)
-        .with_url(&wry_config.url)?
-        .with_bounds(wry::Rect {
-            x: 0,
-            y: 0,
-            width: 1000,
-            height: 1000,
+        .with_url(&wry_config.url.0)
+        .with_bounds(Rect {
+            position: Position::new(PhysicalPosition::new(0, 0)),
+            size: Size::new(PhysicalSize::new(1000, 1000)),
         })
         .build()?;
 

@@ -79,7 +79,6 @@ fn handle_client<In>(
     }
 }
 
-///
 fn try_read_messages<In>(
     socket: &mut WebSocket<&TcpStream>,
     in_bus: &MessageBus<InEvent<In>>,

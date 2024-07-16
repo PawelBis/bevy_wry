@@ -2,7 +2,10 @@ use bevy::{
     prelude::*,
     window::{PrimaryWindow, WindowResized},
 };
-use wry::WebView;
+use wry::{
+    dpi::{PhysicalPosition, PhysicalSize},
+    WebView,
+};
 
 #[derive(Resource)]
 pub struct ScaleFactor(f64);
@@ -35,11 +38,11 @@ pub fn keep_webview_fullscreen(
             continue;
         }
 
-        webview.set_bounds(wry::Rect {
-            x: 0,
-            y: 0,
-            width: *width as u32,
-            height: *height as u32,
-        });
+        webview
+            .set_bounds(wry::Rect {
+                position: wry::dpi::Position::new(PhysicalPosition::new(0, 0)),
+                size: wry::dpi::Size::new(PhysicalSize::new(*width as u32, *height as u32)),
+            })
+            .unwrap();
     }
 }
