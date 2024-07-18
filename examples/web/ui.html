@@ -53,7 +53,8 @@
       }
     </style>
   </head>
-  <body style="background-color:transparent;">
+  <body style="background-color:transparent;text-align:center">
+    <h1>Rotate the square at least 180 degrees to show exit button</h1>
     <button class="left" onclick=rotate(-30)>
       Rotate left
     </button>
@@ -66,36 +67,28 @@
       Rotate right
     </button>
 
-    <!-- In proper application this should be in main.js or main.ts or just file.js -->
     <script type="text/javascript">
-      let websocket = new WebSocket("ws://localhost:8876");
-      websocket.onopen = () => {
-        websocket.onmessage = read_message
-      }
-
       function rotate(d) {
         let rotation_command = {
           Rotate: {
             angle: -d,
           }
         }
-        websocket.send(JSON.stringify(rotation_command));
+        let msg = JSON.stringify(rotation_command);
+        window.ipc.postMessage(msg);
       }
 
       function exit() {
         let msg = "Exit";
-        websocket.send(JSON.stringify(msg))
+        window.ipc.postMessage(JSON.stringify(msg));
       }
       
-      function read_message(m) {
-        let event = JSON.parse(m.data)
-        if (event === "ShowButton") {
+      window.showButton = () => {
           const buttons = document.getElementsByClassName("disabled");
           for (let i = 0; i < buttons.length; i++) {
             let b = buttons.item(i);
             b.classList.remove("disabled");
           }
-        }
       }
     </script>
   </body>

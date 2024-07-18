@@ -30,6 +30,6 @@ jobs:
       env:
         CARGO_INCREMENTAL: 0
     - name: Run tests
-      run: cargo test --verbose
+      run: cargo test --tests --verbose
     - name: Run cargo fmt
       run: cargo fmt -- --check
