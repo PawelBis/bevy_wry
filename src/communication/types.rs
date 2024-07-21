@@ -5,6 +5,9 @@ use serde::{Deserialize, Serialize};
 
 pub trait OutWryEvent: Event + Serialize + Send {
     fn to_script(&self) -> String;
+    fn target_webview(&self) -> Option<String> {
+        None
+    }
 }
 
 pub trait InWryEvent<'de>: Event + Deserialize<'de> + Send {}

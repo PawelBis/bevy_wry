@@ -1,14 +1,18 @@
 pub mod communication;
 mod error;
+pub mod events;
 pub mod webview;
 
+use std::marker::PhantomData;
+
+use bevy::ecs::system::SystemState;
 use bevy::{prelude::*, utils, window::PrimaryWindow, winit::WinitWindows};
 use communication::types::{InWryEvent, MessageBus, OutWryEvent};
 use communication::{consume_in_events, send_out_events};
 use error::Error;
-use webview::{keep_webview_fullscreen, ScaleFactor};
-use wry::dpi::{PhysicalPosition, PhysicalSize, Position, Size};
-use wry::{Rect, WebView, WebViewBuilder};
+use events::CreateWebview;
+use webview::{keep_webviews_in_bounds, ScaleFactor, WebViews};
+use wry::WebViewBuilder;
 
 type Result<T> = std::result::Result<T, Error>;
 
@@ -33,45 +37,24 @@ pub type NakedWryPlugin = BevyWryPlugin<(), ()>;
 /// You can send events to webview via [EventWriter]<[OutEvent<Out>]> and read incoming
 /// events with [EventReader]<[InEvent]>.
 /// Out events are sent via webview.:evaluate_script.
-#[derive(Default, Resource)]
 pub struct BevyWryPlugin<I, O>
 where
     for<'de> I: InWryEvent<'de>,
     O: OutWryEvent,
 {
-    /// Url loaded in the webview, stored in the 'UrlResource'
-    pub url: UrlResource,
-    /// [MessageBus] in which incoming messages are stored.
-    in_message_bus: MessageBus<I>,
-    /// [MessageBus] in which outcoming messages are stored. This message bus is populated from
-    /// events produced by [EventWriter]`<Out>`
-    out_message_bus: MessageBus<O>,
+    _i: PhantomData<I>,
+    _o: PhantomData<O>,
 }
 
-impl<I, O> Clone for BevyWryPlugin<I, O>
+impl<I, O> Default for BevyWryPlugin<I, O>
 where
     for<'de> I: InWryEvent<'de>,
     O: OutWryEvent,
 {
-    fn clone(&self) -> Self {
+    fn default() -> Self {
         Self {
-            url: self.url.clone(),
-            in_message_bus: self.in_message_bus.clone(),
-            out_message_bus: self.out_message_bus.clone(),
-        }
-    }
-}
-
-impl<I, O> BevyWryPlugin<I, O>
-where
-    for<'de> I: InWryEvent<'de>,
-    O: OutWryEvent,
-{
-    pub fn new(url: impl Into<String>) -> Self {
-        Self {
-            url: UrlResource(url.into()),
-            in_message_bus: MessageBus::<I>::default(),
-            out_message_bus: MessageBus::<O>::default(),
+            _i: PhantomData,
+            _o: PhantomData,
         }
     }
 }
@@ -82,65 +65,87 @@ where
     O: OutWryEvent,
 {
     fn build(&self, app: &mut App) {
-        app.insert_resource(self.clone())
-            .add_event::<I>()
+        #[cfg(any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd",
+        ))]
+        {
+            gtk::init().unwrap();
+
+            // we need to ignore this error here otherwise it will be catched by winit and will be
+            // make the example crash
+            winit::platform::x11::register_xlib_error_hook(Box::new(|_display, error| {
+                let error = error as *mut x11_dl::xlib::XErrorEvent;
+                (unsafe { (*error).error_code }) == 170
+            }));
+        }
+
+        app.add_event::<I>()
             .add_event::<O>()
-            .init_non_send_resource::<Option<WebView>>()
-            .add_systems(Startup, setup_webview::<I, O>.map(utils::error))
-            .add_systems(Update, keep_webview_fullscreen)
+            .add_event::<CreateWebview>()
+            .insert_non_send_resource(WebViews::default())
+            .init_resource::<MessageBus<I>>()
+            .init_resource::<MessageBus<O>>()
+            .add_systems(Update, create_webview::<I>.map(utils::error))
+            .add_systems(Update, keep_webviews_in_bounds)
             .add_systems(Update, consume_in_events::<I>)
             .add_systems(Update, send_out_events::<O>.map(utils::error));
     }
 }
 
-fn setup_webview<I, O>(world: &mut World) -> Result<()>
+fn create_webview<I>(world: &mut World) -> Result<()>
 where
     for<'de> I: InWryEvent<'de>,
-    O: OutWryEvent,
 {
-    let wry_config = world
-        .remove_resource::<BevyWryPlugin<I, O>>()
-        .ok_or_else(|| Error::MissingResource("BevyWryPlugin".to_owned()))?;
+    let mut system_state = SystemState::<(
+        EventReader<CreateWebview>,
+        Query<Entity, With<PrimaryWindow>>,
+        NonSend<WinitWindows>,
+        Res<MessageBus<I>>,
+        NonSendMut<WebViews>,
+    )>::new(world);
 
-    let primary_window_entity = world
-        .query_filtered::<Entity, With<PrimaryWindow>>()
-        .single(world);
-    let primary_window = world
-        .get_non_send_resource::<WinitWindows>()
-        .ok_or_else(|| Error::MissingResource("WinitWindows".to_owned()))?
+    let (mut create_webview_events, primary_window_entity, winit_windows, in_bus, mut webviews) =
+        system_state.get_mut(world);
+
+    let primary_window_entity = primary_window_entity.single();
+
+    let primary_window: &winit::window::Window = winit_windows
         .get_window(primary_window_entity)
         .ok_or(Error::FailedToGetMainWindow)?;
 
     let scale_factor = primary_window.scale_factor();
+    let size = primary_window.inner_size();
 
-    let in_bus = wry_config.in_message_bus;
-    let in_bus_handler = in_bus.clone();
+    for event in create_webview_events.read() {
+        let mut builder = WebViewBuilder::new_as_child(primary_window)
+            .with_transparent(event.transparent)
+            .with_bounds(event.bounds.to_webview_bounds(
+                size.width as f32,
+                size.height as f32,
+                scale_factor,
+            ));
 
-    let webview = WebViewBuilder::new_as_child(primary_window)
-        .with_transparent(true)
-        .with_url(&wry_config.url.0)
-        .with_bounds(Rect {
-            position: Position::new(PhysicalPosition::new(0, 0)),
-            size: Size::new(PhysicalSize::new(1000, 1000)),
-        })
-        .with_ipc_handler(move |request| {
-            let event: I = serde_json::from_str(request.body()).unwrap();
+        if let Some(url) = event.url.clone() {
+            builder = builder.with_url(url);
+        }
 
-            let mut in_bus = in_bus_handler.lock();
-            in_bus.push(event);
-        })
-        .build()?;
+        let in_bus = in_bus.clone();
+        let webview = builder
+            .with_ipc_handler(move |request| {
+                let event: I = serde_json::from_str(request.body()).unwrap();
 
-    let in_bus_resource = in_bus.clone();
-    world.insert_resource(in_bus_resource);
+                let mut in_bus = in_bus.lock();
+                in_bus.push(event);
+            })
+            .build()?;
 
-    let out_bus = wry_config.out_message_bus;
-    let out_bus_resource = out_bus.clone();
-    world.insert_resource(out_bus_resource);
+        webviews.insert(event.name.clone(), webview, event.bounds.clone());
+    }
 
-    world.insert_resource(wry_config.url);
     world.insert_resource(ScaleFactor::from(scale_factor));
-    world.insert_non_send_resource(webview);
-
     Ok(())
 }

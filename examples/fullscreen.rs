@@ -1,6 +1,12 @@
 use bevy::{app::AppExit, prelude::*};
-use bevy_wry::{communication::types::OutWryEvent, BevyWryPlugin};
+use bevy_wry::{
+    communication::{types::OutWryEvent, ui::Bounds},
+    events::CreateWebview,
+    BevyWryPlugin,
+};
 use std::env;
+
+const WEBVIEW_NAME: &str = "MAIN_WEBVIEW";
 
 #[derive(Event, Clone, serde::Serialize, serde::Deserialize)]
 enum Command {
@@ -28,20 +34,16 @@ impl OutWryEvent for OutWrapper {
 }
 
 fn main() {
-    // bevy_wry needs absolute path to files for now
-    let manifest_path = env::var("CARGO_MANIFEST_DIR").unwrap();
-    let ui_path = format!("file://{manifest_path}/examples/web/ui.html");
-
     App::new()
         .insert_resource(ClearColor(Color::PURPLE))
         .add_plugins(DefaultPlugins)
-        .add_plugins(BevyWryPlugin::<InWrapper, OutWrapper>::new(ui_path))
+        .add_plugins(BevyWryPlugin::<InWrapper, OutWrapper>::default())
         .add_systems(Startup, setup)
         .add_systems(Update, handle_events)
         .run();
 }
 
-fn setup(mut commands: Commands) {
+fn setup(mut commands: Commands, mut writer: EventWriter<CreateWebview>) {
     commands.spawn(Camera2dBundle::default());
     commands.spawn(SpriteBundle {
         sprite: Sprite {
@@ -51,6 +53,17 @@ fn setup(mut commands: Commands) {
         },
         transform: Transform::from_translation(Vec3::new(-50.0, -50.0, 0.0)),
         ..default()
+    });
+
+    // bevy_wry needs absolute path to files for now
+    let manifest_path = env::var("CARGO_MANIFEST_DIR").unwrap();
+    let ui_path = format!("file://{manifest_path}/examples/web/ui.html");
+
+    writer.send(CreateWebview {
+        name: WEBVIEW_NAME.to_string(),
+        url: Some(ui_path),
+        transparent: true,
+        bounds: Bounds::FullScreen,
     });
 }
 

@@ -17,12 +17,15 @@ thiserror = "1.0"
 serde = { version = "1.0", default-features = false }
 serde_json = { version = "1.0" }
 
-[[example]]
-name = "simple"
-path = "examples/simple.rs"
+[target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
+gtk = { version = "0.18", optional = true }
 
-[features]
-simple-example = ["bevy/bevy_core_pipeline", "bevy/bevy_render", "bevy/bevy_sprite"]
+[dev-dependencies]
+bevy = { version = "0.13", default-features = true }
+
+[[example]]
+name = "fullscreen"
+path = "examples/fullscreen.rs"
 
 [patch.crates-io]
 # At the moment http disallows empty authority and invalidates uris like: "file:///path/to/file"

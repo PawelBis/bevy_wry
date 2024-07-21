@@ -1,11 +1,50 @@
 use bevy::{
     prelude::*,
+    utils::HashMap,
     window::{PrimaryWindow, WindowResized},
 };
-use wry::{
-    dpi::{PhysicalPosition, PhysicalSize},
-    WebView,
-};
+use wry::WebView;
+
+use crate::communication::ui::Bounds;
+
+pub struct WebviewWrapper {
+    pub webview: WebView,
+    pub bounds: Bounds,
+}
+
+#[derive(Default)]
+pub struct WebViews {
+    webviews: HashMap<String, WebView>,
+    bounds: HashMap<String, Bounds>,
+}
+
+impl WebViews {
+    pub fn insert(&mut self, name: String, webview: WebView, bounds: Bounds) {
+        if self.webviews.contains_key(&name) {
+            warn!("Tried to re-insert WebView {name}");
+            return;
+        }
+
+        self.webviews.insert(name.clone(), webview);
+        self.bounds.insert(name, bounds);
+    }
+
+    pub fn get_webview(&self, name: String) -> Option<&WebView> {
+        self.webviews.get(&name)
+    }
+
+    pub fn get_bounds(&self, name: String) -> Option<&Bounds> {
+        self.bounds.get(&name)
+    }
+
+    pub fn get_all_webviews(&self) -> Vec<&WebView> {
+        self.webviews.values().collect()
+    }
+
+    pub fn get_all_webviews_with_bounds(&self) -> Vec<(&WebView, &Bounds)> {
+        self.webviews.values().zip(self.bounds.values()).collect()
+    }
+}
 
 #[derive(Resource)]
 pub struct ScaleFactor(f64);
@@ -22,11 +61,18 @@ impl From<f64> for ScaleFactor {
     }
 }
 
-pub fn keep_webview_fullscreen(
+pub fn keep_webviews_in_bounds(
     mut resize_reader: EventReader<WindowResized>,
-    webview: NonSendMut<WebView>,
+    webviews: NonSendMut<WebViews>,
     primary_window_entity: Query<Entity, With<PrimaryWindow>>,
+    scale_factor: Option<Res<ScaleFactor>>,
 ) {
+    if scale_factor.is_none() {
+        return;
+    }
+
+    let scale_factor = scale_factor.unwrap();
+    let webviews_and_bounds = webviews.get_all_webviews_with_bounds();
     let primary_window = primary_window_entity.single();
     for resize_event in resize_reader.read() {
         let WindowResized {
@@ -38,11 +84,10 @@ pub fn keep_webview_fullscreen(
             continue;
         }
 
-        webview
-            .set_bounds(wry::Rect {
-                position: wry::dpi::Position::new(PhysicalPosition::new(0, 0)),
-                size: wry::dpi::Size::new(PhysicalSize::new(*width as u32, *height as u32)),
-            })
-            .unwrap();
+        for (webview, bounds) in webviews_and_bounds.iter() {
+            webview
+                .set_bounds(bounds.to_webview_bounds(*width, *height, scale_factor.as_f64()))
+                .unwrap();
+        }
     }
 }
