@@ -1,9 +1,12 @@
+use bevy::prelude::Resource;
+use serde::{Deserialize, Serialize};
+use winit::dpi::Size;
 use wry::{
-    dpi::{PhysicalPosition, PhysicalSize, Position},
+    dpi::{LogicalPosition, LogicalSize, Position},
     Rect,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize, Copy, PartialEq)]
 pub enum Anchor {
     /// Maintain position relative to the top edge of the window
     Top,
@@ -38,18 +41,18 @@ pub enum Anchor {
 }
 
 fn add_positions(position_a: &Position, position_b: &Position, scale_factor: f64) -> Position {
-    let physical_a: PhysicalPosition<i32> = position_a.to_physical(scale_factor);
-    let physical_b: PhysicalPosition<i32> = position_b.to_physical(scale_factor);
+    let physical_a: LogicalPosition<f64> = position_a.to_logical(scale_factor);
+    let physical_b: LogicalPosition<f64> = position_b.to_logical(scale_factor);
 
-    PhysicalPosition {
-        x: physical_a.x + physical_a.x,
-        y: physical_b.y + physical_b.y,
+    LogicalPosition {
+        x: physical_a.x + physical_b.x,
+        y: physical_a.y + physical_b.y,
     }
     .into()
 }
 
 /// Position of the WebView
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Resource)]
 pub enum Bounds {
     /// WebView covers whole window
     FullScreen,
@@ -60,31 +63,34 @@ pub enum Bounds {
 }
 
 impl Bounds {
-    pub fn to_webview_bounds(
-        &self,
-        window_width: f32,
-        window_height: f32,
-        scale_factor: f64,
-    ) -> wry::Rect {
+    pub fn to_webview_bounds(&self, window_size: impl Into<Size>, scale_factor: f64) -> wry::Rect {
+        let (window_width, window_height) = match window_size.into() {
+            Size::Physical(ps) => {
+                let ls = ps.to_logical(scale_factor);
+                (ls.width, ls.height)
+            }
+            Size::Logical(ls) => (ls.width, ls.height),
+        };
+
         match self {
             Bounds::FullScreen => wry::Rect {
-                position: PhysicalPosition::new(0, 0).into(),
-                size: PhysicalSize::new(window_width as u32, window_height as u32).into(),
+                position: LogicalPosition::new(0, 0).into(),
+                size: LogicalSize::new(window_width as u32, window_height as u32).into(),
             },
             Bounds::Absolute(rect) => *rect,
             Bounds::Relative { anchor, bounds } => {
-                let center = PhysicalPosition {
+                let center = LogicalPosition {
                     x: ((window_width / 2.0) as u32),
                     y: ((window_height / 2.0) as u32),
                 };
-                let physical_size = bounds.size.to_physical(scale_factor);
+                let current_size = bounds.size.to_logical(scale_factor);
                 let relative_bounds = match anchor {
                     Anchor::Top => Rect {
-                        position: PhysicalPosition { x: center.x, y: 0 }.into(),
+                        position: LogicalPosition { x: center.x, y: 0 }.into(),
                         size: bounds.size,
                     },
                     Anchor::Bottom => Rect {
-                        position: PhysicalPosition {
+                        position: LogicalPosition {
                             x: center.x,
                             y: window_height as u32,
                         }
@@ -92,11 +98,11 @@ impl Bounds {
                         size: bounds.size,
                     },
                     Anchor::Left => Rect {
-                        position: PhysicalPosition { x: 0, y: center.y }.into(),
+                        position: LogicalPosition { x: 0, y: center.y }.into(),
                         size: bounds.size,
                     },
                     Anchor::Right => Rect {
-                        position: PhysicalPosition {
+                        position: LogicalPosition {
                             x: window_width as u32,
                             y: center.y,
                         }
@@ -108,51 +114,51 @@ impl Bounds {
                         size: bounds.size,
                     },
                     Anchor::TopStretch => Rect {
-                        position: PhysicalPosition { x: center.x, y: 0 }.into(),
-                        size: PhysicalSize {
+                        position: LogicalPosition { x: 0, y: 0 }.into(),
+                        size: LogicalSize {
                             width: window_width,
-                            height: physical_size.height,
+                            height: current_size.height,
                         }
                         .into(),
                     },
                     Anchor::BottomStretch => Rect {
-                        position: PhysicalPosition {
-                            x: center.x,
-                            y: window_height as u32,
+                        position: LogicalPosition {
+                            x: 0,
+                            y: (window_height - current_size.height) as u32,
                         }
                         .into(),
-                        size: PhysicalSize {
+                        size: LogicalSize {
                             width: window_width,
-                            height: physical_size.height,
+                            height: current_size.height,
                         }
                         .into(),
                     },
                     Anchor::LeftStretch => Rect {
-                        position: PhysicalPosition { x: 0, y: center.y }.into(),
-                        size: PhysicalSize {
-                            width: physical_size.width,
+                        position: LogicalPosition { x: 0, y: 0 }.into(),
+                        size: LogicalSize {
+                            width: current_size.width,
                             height: window_height,
                         }
                         .into(),
                     },
                     Anchor::RightStretch => Rect {
-                        position: PhysicalPosition {
-                            x: window_width as u32,
-                            y: center.y,
+                        position: LogicalPosition {
+                            x: (window_width - current_size.width) as u32,
+                            y: 0,
                         }
                         .into(),
-                        size: PhysicalSize {
-                            width: physical_size.width,
+                        size: LogicalSize {
+                            width: current_size.width,
                             height: window_height,
                         }
                         .into(),
                     },
                     Anchor::TopLeft => Rect {
-                        position: PhysicalPosition::new(0, 0).into(),
+                        position: LogicalPosition::new(0, 0).into(),
                         size: bounds.size,
                     },
                     Anchor::TopRight => Rect {
-                        position: PhysicalPosition {
+                        position: LogicalPosition {
                             x: window_width as u32,
                             y: 0,
                         }
@@ -160,7 +166,7 @@ impl Bounds {
                         size: bounds.size,
                     },
                     Anchor::BottomLeft => Rect {
-                        position: PhysicalPosition {
+                        position: LogicalPosition {
                             x: 0,
                             y: window_height as u32,
                         }
@@ -168,7 +174,7 @@ impl Bounds {
                         size: bounds.size,
                     },
                     Anchor::BottomRight => Rect {
-                        position: PhysicalPosition {
+                        position: LogicalPosition {
                             x: window_width as u32,
                             y: window_height as u32,
                         }
@@ -176,30 +182,38 @@ impl Bounds {
                         size: bounds.size,
                     },
                     Anchor::CenterVerticalStretch => Rect {
-                        position: center.into(),
-                        size: PhysicalSize {
-                            width: physical_size.width,
+                        position: LogicalPosition { x: center.x, y: 0 }.into(),
+                        size: LogicalSize {
+                            width: current_size.width,
                             height: window_height,
                         }
                         .into(),
                     },
                     Anchor::CenterHorizontalStretch => Rect {
-                        position: center.into(),
-                        size: PhysicalSize {
+                        position: LogicalPosition { x: 0, y: center.y }.into(),
+                        size: LogicalSize {
                             width: window_width,
-                            height: physical_size.height,
+                            height: current_size.height,
                         }
                         .into(),
                     },
                 };
 
-                Rect {
-                    position: add_positions(
-                        &relative_bounds.position,
-                        &bounds.position,
-                        scale_factor,
-                    ),
-                    size: relative_bounds.size,
+                match anchor {
+                    Anchor::TopStretch
+                    | Anchor::BottomStretch
+                    | Anchor::LeftStretch
+                    | Anchor::RightStretch
+                    | Anchor::CenterVerticalStretch
+                    | Anchor::CenterHorizontalStretch => relative_bounds,
+                    _ => Rect {
+                        position: add_positions(
+                            &relative_bounds.position,
+                            &bounds.position,
+                            scale_factor,
+                        ),
+                        size: relative_bounds.size,
+                    },
                 }
             }
         }

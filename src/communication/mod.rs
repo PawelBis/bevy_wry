@@ -23,7 +23,7 @@ pub fn send_out_events<T: Event + OutWryEvent>(
     for event in events.read() {
         match event.target_webview() {
             Some(webview_name) => {
-                if let Some(webview) = webviews.get_webview(webview_name) {
+                if let Some(webview) = webviews.get_webview(&webview_name) {
                     webview
                         .evaluate_script(&event.to_script())
                         .map_err(|_| Error::EvaluateScript)?;

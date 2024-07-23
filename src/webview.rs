@@ -3,6 +3,7 @@ use bevy::{
     utils::HashMap,
     window::{PrimaryWindow, WindowResized},
 };
+use winit::dpi::LogicalSize;
 use wry::WebView;
 
 use crate::communication::ui::Bounds;
@@ -29,12 +30,19 @@ impl WebViews {
         self.bounds.insert(name, bounds);
     }
 
-    pub fn get_webview(&self, name: String) -> Option<&WebView> {
-        self.webviews.get(&name)
+    pub fn get_webview(&self, name: &String) -> Option<&WebView> {
+        self.webviews.get(name)
     }
 
-    pub fn get_bounds(&self, name: String) -> Option<&Bounds> {
-        self.bounds.get(&name)
+    pub fn get_bounds(&self, name: &String) -> Option<&Bounds> {
+        self.bounds.get(name)
+    }
+
+    pub fn get_webview_with_bounds_mut(
+        &mut self,
+        name: &String,
+    ) -> Option<(&mut WebView, &mut Bounds)> {
+        self.webviews.get_mut(name).zip(self.bounds.get_mut(name))
     }
 
     pub fn get_all_webviews(&self) -> Vec<&WebView> {
@@ -84,9 +92,10 @@ pub fn keep_webviews_in_bounds(
             continue;
         }
 
+        let window_size = LogicalSize::new(*width as f64, *height as f64);
         for (webview, bounds) in webviews_and_bounds.iter() {
             webview
-                .set_bounds(bounds.to_webview_bounds(*width, *height, scale_factor.as_f64()))
+                .set_bounds(bounds.to_webview_bounds(window_size, scale_factor.as_f64()))
                 .unwrap();
         }
     }

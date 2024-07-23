@@ -10,9 +10,8 @@ use bevy::{prelude::*, utils, window::PrimaryWindow, winit::WinitWindows};
 use communication::types::{InWryEvent, MessageBus, OutWryEvent};
 use communication::{consume_in_events, send_out_events};
 use error::Error;
-use events::CreateWebview;
+use events::{create_webview, update_anchor, WebViewEvent};
 use webview::{keep_webviews_in_bounds, ScaleFactor, WebViews};
-use wry::WebViewBuilder;
 
 type Result<T> = std::result::Result<T, Error>;
 
@@ -85,23 +84,24 @@ where
 
         app.add_event::<I>()
             .add_event::<O>()
-            .add_event::<CreateWebview>()
+            .add_event::<WebViewEvent>()
             .insert_non_send_resource(WebViews::default())
             .init_resource::<MessageBus<I>>()
             .init_resource::<MessageBus<O>>()
-            .add_systems(Update, create_webview::<I>.map(utils::error))
+            .insert_resource(ScaleFactor::from(1.0))
+            .add_systems(Update, handle_webview_events::<I>.map(utils::error))
             .add_systems(Update, keep_webviews_in_bounds)
             .add_systems(Update, consume_in_events::<I>)
             .add_systems(Update, send_out_events::<O>.map(utils::error));
     }
 }
 
-fn create_webview<I>(world: &mut World) -> Result<()>
+fn handle_webview_events<I>(world: &mut World) -> Result<()>
 where
     for<'de> I: InWryEvent<'de>,
 {
     let mut system_state = SystemState::<(
-        EventReader<CreateWebview>,
+        EventReader<WebViewEvent>,
         Query<Entity, With<PrimaryWindow>>,
         NonSend<WinitWindows>,
         Res<MessageBus<I>>,
@@ -118,33 +118,40 @@ where
         .ok_or(Error::FailedToGetMainWindow)?;
 
     let scale_factor = primary_window.scale_factor();
-    let size = primary_window.inner_size();
 
     for event in create_webview_events.read() {
-        let mut builder = WebViewBuilder::new_as_child(primary_window)
-            .with_transparent(event.transparent)
-            .with_bounds(event.bounds.to_webview_bounds(
-                size.width as f32,
-                size.height as f32,
-                scale_factor,
-            ));
+        let event: &WebViewEvent = event;
+        match event {
+            WebViewEvent::Create(params) => {
+                let webview = create_webview(params, primary_window, in_bus.clone())?;
 
-        if let Some(url) = event.url.clone() {
-            builder = builder.with_url(url);
-        }
-
-        let in_bus = in_bus.clone();
-        let webview = builder
-            .with_ipc_handler(move |request| {
-                let event: I = serde_json::from_str(request.body()).unwrap();
-
-                let mut in_bus = in_bus.lock();
-                in_bus.push(event);
-            })
-            .build()?;
-
-        webviews.insert(event.name.clone(), webview, event.bounds.clone());
+                webviews.insert(params.name.clone(), webview, params.bounds.clone());
+            }
+            WebViewEvent::UpdateAnchor {
+                webview_name,
+                new_anchor,
+            } => {
+                let (webview, bounds) = webviews
+                    .get_webview_with_bounds_mut(webview_name)
+                    .ok_or_else(|| Error::FailedToGetWebview(webview_name.clone()))?;
+                update_anchor(webview, bounds, *new_anchor, primary_window)?;
+            }
+            WebViewEvent::UpdateBounds {
+                webview_name,
+                new_bounds,
+            } => {
+                let (webview, bounds) = webviews
+                    .get_webview_with_bounds_mut(webview_name)
+                    .ok_or_else(|| Error::FailedToGetWebview(webview_name.clone()))?;
+                *bounds = new_bounds.clone();
+                webview.set_bounds(bounds.to_webview_bounds(
+                    primary_window.inner_size(),
+                    primary_window.scale_factor(),
+                ))?;
+            }
+        };
     }
+    create_webview_events.clear();
 
     world.insert_resource(ScaleFactor::from(scale_factor));
     Ok(())

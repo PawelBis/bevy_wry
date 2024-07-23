@@ -1,10 +1,10 @@
 [package]
 name = "bevy_wry"
-version = "0.1.6"
+version = "0.1.9"
 edition = "2021"
-categories = ["bevy-plugin", "gui"]
+categories = ["game-development"]
 description = "A tauri-apps/wry integration with Bevy engine"
-keywords = ["bevy", "wry", "bevy_wry"]
+keywords = ["bevy", "wry", "bevy_wry", "plugin"]
 license = "MIT"
 authors = ["Pawel Bis"]
 repository = "https://github.com/PawelBis/bevy_wry"
@@ -18,7 +18,8 @@ serde = { version = "1.0", default-features = false }
 serde_json = { version = "1.0" }
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
-gtk = { version = "0.18", optional = true }
+gtk = { version = "0.18" }
+x11-dl = "2.21.0"
 
 [dev-dependencies]
 bevy = { version = "0.13", default-features = true }
