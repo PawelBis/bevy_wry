@@ -13,6 +13,16 @@ pub trait OutWryEvent: Event + Serialize + Send {
 pub trait InWryEvent<'de>: Event + Deserialize<'de> + Send {}
 impl<'de, T> InWryEvent<'de> for T where T: Event + Deserialize<'de> + Send {}
 
+#[derive(Deserialize, Serialize, Event)]
+pub struct EmptyOutEvent;
+
+impl OutWryEvent for EmptyOutEvent {
+    fn to_script(&self) -> String { "".to_string() }
+}
+
+#[derive(Deserialize, Serialize, Event)]
+pub struct EmptyInEvent;
+
 #[derive(Deref, Resource)]
 pub struct MessageBus<T: Send>(pub Arc<Mutex<Vec<T>>>);
 

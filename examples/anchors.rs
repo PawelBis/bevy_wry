@@ -1,7 +1,6 @@
 use bevy::{app::AppExit, prelude::*};
 use bevy_wry::{
     communication::{
-        types::OutWryEvent,
         ui::{Anchor, Bounds},
     },
     events::{CreateWebView, WebViewEvent},
@@ -22,16 +21,6 @@ struct NextAnchor;
 #[derive(Event, Clone, serde::Serialize, serde::Deserialize)]
 struct InWrapper(pub NextAnchor);
 
-/// At the moment there is no support for applications with no out events
-#[derive(Event, Clone, serde::Serialize, serde::Deserialize)]
-struct OutWrapper(pub NextAnchor);
-
-impl OutWryEvent for OutWrapper {
-    fn to_script(&self) -> String {
-        "".to_string()
-    }
-}
-
 #[derive(Resource)]
 struct CurrentAnchor(Anchor);
 
@@ -41,7 +30,7 @@ fn main() {
         .insert_resource(CurrentAnchor(Anchor::Center))
         .add_event::<NextAnchor>()
         .add_plugins(DefaultPlugins)
-        .add_plugins(BevyWryPlugin::<InWrapper, OutWrapper>::default())
+        .add_plugins(BevyWryPlugin::<InWrapper>::default())
         .add_systems(Startup, setup)
         .add_systems(Update, handle_events)
         .run();

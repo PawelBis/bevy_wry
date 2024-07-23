@@ -7,7 +7,7 @@ use std::marker::PhantomData;
 
 use bevy::ecs::system::SystemState;
 use bevy::{prelude::*, utils, window::PrimaryWindow, winit::WinitWindows};
-use communication::types::{InWryEvent, MessageBus, OutWryEvent};
+use communication::types::{InWryEvent, MessageBus, OutWryEvent, EmptyOutEvent, EmptyInEvent};
 use communication::{consume_in_events, send_out_events};
 use error::Error;
 use events::{create_webview, update_anchor, WebViewEvent};
@@ -36,7 +36,7 @@ pub type NakedWryPlugin = BevyWryPlugin<(), ()>;
 /// You can send events to webview via [EventWriter]<[OutEvent<Out>]> and read incoming
 /// events with [EventReader]<[InEvent]>.
 /// Out events are sent via webview.:evaluate_script.
-pub struct BevyWryPlugin<I, O>
+pub struct BevyWryPlugin<I = EmptyInEvent, O = EmptyOutEvent>
 where
     for<'de> I: InWryEvent<'de>,
     O: OutWryEvent,
