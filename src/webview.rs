@@ -6,7 +6,7 @@ use bevy::{
 use winit::dpi::LogicalSize;
 use wry::WebView;
 
-use crate::communication::ui::Bounds;
+use crate::{communication::ui::Bounds, error::Error};
 
 pub struct WebviewWrapper {
     pub webview: WebView,
@@ -51,6 +51,19 @@ impl WebViews {
 
     pub fn get_all_webviews_with_bounds(&self) -> Vec<(&WebView, &Bounds)> {
         self.webviews.values().zip(self.bounds.values()).collect()
+    }
+
+    pub fn remove_webview(&mut self, name: &String) -> Result<(), Error> {
+        self
+            .webviews
+            .remove(name)
+            .ok_or_else(|| Error::FailedToGetWebview(name.clone()))?;
+        self
+            .bounds
+            .remove(name)
+            .ok_or_else(|| Error::FailedToGetWebview(name.clone()))?;
+
+        Ok(())
     }
 }
 

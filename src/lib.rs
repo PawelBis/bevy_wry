@@ -149,6 +149,9 @@ where
                     primary_window.scale_factor(),
                 ))?;
             }
+            WebViewEvent::Close(name) => {
+                webviews.remove_webview(name)?;
+            }
         };
     }
     create_webview_events.clear();

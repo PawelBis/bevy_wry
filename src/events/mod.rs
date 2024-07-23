@@ -29,6 +29,8 @@ pub enum WebViewEvent {
         webview_name: String,
         new_bounds: Bounds,
     },
+    /// Close webview
+    Close(String),
 }
 
 impl From<CreateWebView> for WebViewEvent {
