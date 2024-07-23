@@ -5,7 +5,7 @@
 BevyWry allows for [bevy::Event](https://docs.rs/bevy/latest/bevy/ecs/event/trait.Event.html) based communication with WebView:
 - Out events are required to implement [OutWryEvent]. This allows for [wry::WebView::evaluate_script](https://docs.rs/wry/latest/wry/struct.WebView.html#method.evaluate_script) communication with WebView
 - Incoming events are received via IPC channel registered with [wry::WebViewBuilder::with_ipc_handler](https://docs.rs/wry/latest/wry/struct.WebViewBuilder.html#method.with_ipc_handler)
-This plugin is still in very early stages, but it should be good enough for somne experimental work.
+This plugin is in EARLY and EXPERIMENTAL stage.
 
 # Examples
 
