@@ -7,6 +7,13 @@ BevyWry allows for [bevy::Event](https://docs.rs/bevy/latest/bevy/ecs/event/trai
 - Incoming events are received via IPC channel registered with [wry::WebViewBuilder::with_ipc_handler](https://docs.rs/wry/latest/wry/struct.WebViewBuilder.html#method.with_ipc_handler)
 This plugin is in EARLY and EXPERIMENTAL stage.
 
+Please keep in mind that you will have to add this patch to use `bevy_wry`:
+```
+[patch.crates-io]
+# At the moment http disallows empty authority and invalidates uris like: "file:///path/to/file"
+http = { git = "https://github.com/PawelBis/http", branch = "feature/empty-authority" }
+```
+
 # Examples
 
 - [fullscreen](https://github.com/PawelBis/bevy_wry/blob/main/examples/fullscreen.rs) - how to create and use fullscreen webview with transparency. Linux and Windows doesn't support transparency at the moment
