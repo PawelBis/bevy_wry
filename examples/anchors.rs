@@ -1,10 +1,8 @@
 use bevy::app::AppExit;
 use bevy::prelude::*;
-use bevy_wry::{
-    components::{Anchor, Bounds},
-    events::{CreateWebView, WebViewEvent},
-    BevyWryPlugin,
-};
+use bevy_wry::components::{Anchor, Bounds};
+use bevy_wry::events::{CreateWebView, WebViewEvent};
+use bevy_wry::BevyWryPlugin;
 use wry::dpi::{LogicalPosition, LogicalSize};
 
 const WEBVIEW_NAME: &str = "MAIN_WEBVIEW";

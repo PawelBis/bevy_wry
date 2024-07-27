@@ -12,10 +12,9 @@ use bevy::window::PrimaryWindow;
 use bevy::winit::WinitWindows;
 use error::Error;
 use events::system::{consume_in_events, send_out_events};
-use events::MessageBus;
 use events::{
-    create_webview, update_anchor, EmptyInEvent, EmptyOutEvent, InWryEvent, OutWryEvent,
-    WebViewEvent,
+    create_webview, update_anchor, EmptyInEvent, EmptyOutEvent, InWryEvent, MessageBus,
+    OutWryEvent, WebViewEvent,
 };
 use webview::{keep_webviews_in_bounds, ScaleFactor, WebViews};
 
