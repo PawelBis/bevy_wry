@@ -1,9 +1,8 @@
-use bevy::{app::AppExit, prelude::*};
-use bevy_wry::{
-    communication::{types::OutWryEvent, ui::Bounds},
-    events::{CreateWebView, WebViewEvent},
-    BevyWryPlugin,
-};
+use bevy::app::AppExit;
+use bevy::prelude::*;
+use bevy_wry::components::Bounds;
+use bevy_wry::events::{CreateWebView, OutWryEvent, WebViewEvent};
+use bevy_wry::BevyWryPlugin;
 use std::env;
 
 const WEBVIEW_NAME: &str = "MAIN_WEBVIEW";

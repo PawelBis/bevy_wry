@@ -1,8 +1,7 @@
-use bevy::{app::AppExit, prelude::*};
+use bevy::app::AppExit;
+use bevy::prelude::*;
 use bevy_wry::{
-    communication::{
-        ui::{Anchor, Bounds},
-    },
+    components::{Anchor, Bounds},
     events::{CreateWebView, WebViewEvent},
     BevyWryPlugin,
 };

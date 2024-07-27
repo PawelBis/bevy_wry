@@ -1,12 +1,11 @@
-use bevy::{
-    prelude::*,
-    utils::HashMap,
-    window::{PrimaryWindow, WindowResized},
-};
+use bevy::prelude::*;
+use bevy::utils::HashMap;
+use bevy::window::{PrimaryWindow, WindowResized};
 use winit::dpi::LogicalSize;
 use wry::WebView;
 
-use crate::{communication::ui::Bounds, error::Error};
+use crate::components::Bounds;
+use crate::error::Error;
 
 pub struct WebviewWrapper {
     pub webview: WebView,
@@ -54,12 +53,10 @@ impl WebViews {
     }
 
     pub fn remove_webview(&mut self, name: &String) -> Result<(), Error> {
-        self
-            .webviews
+        self.webviews
             .remove(name)
             .ok_or_else(|| Error::FailedToGetWebview(name.clone()))?;
-        self
-            .bounds
+        self.bounds
             .remove(name)
             .ok_or_else(|| Error::FailedToGetWebview(name.clone()))?;
 

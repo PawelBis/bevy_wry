@@ -1,8 +1,8 @@
 use bevy::prelude::Resource;
 use serde::{Deserialize, Serialize};
 use winit::dpi::Size;
-pub use wry::Rect;
 use wry::dpi::{LogicalPosition, LogicalSize, Position};
+use wry::Rect;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Copy, PartialEq)]
 pub enum Anchor {

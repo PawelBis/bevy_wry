@@ -1,4 +1,4 @@
-pub mod communication;
+pub mod components;
 mod error;
 pub mod events;
 pub mod webview;
@@ -6,12 +6,20 @@ pub mod webview;
 use std::marker::PhantomData;
 
 use bevy::ecs::system::SystemState;
-use bevy::{prelude::*, utils, window::PrimaryWindow, winit::WinitWindows};
-use communication::types::{InWryEvent, MessageBus, OutWryEvent, EmptyOutEvent, EmptyInEvent};
-use communication::{consume_in_events, send_out_events};
+use bevy::prelude::*;
+use bevy::utils;
+use bevy::window::PrimaryWindow;
+use bevy::winit::WinitWindows;
 use error::Error;
-use events::{create_webview, update_anchor, WebViewEvent};
+use events::system::{consume_in_events, send_out_events};
+use events::MessageBus;
+use events::{
+    create_webview, update_anchor, EmptyInEvent, EmptyOutEvent, InWryEvent, OutWryEvent,
+    WebViewEvent,
+};
 use webview::{keep_webviews_in_bounds, ScaleFactor, WebViews};
+
+pub use wry;
 
 type Result<T> = std::result::Result<T, Error>;
 

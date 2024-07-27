@@ -1,13 +1,9 @@
-pub mod error;
-pub mod types;
-pub mod ui;
-
-use bevy::prelude::{Event, EventReader, EventWriter, NonSend, ResMut};
-pub use error::Error;
+use bevy::prelude::*;
 
 use crate::webview::WebViews;
 
-use self::types::{MessageBus, OutWryEvent};
+use super::error::Error;
+use super::{MessageBus, OutWryEvent};
 
 pub fn consume_in_events<T: Event>(message_bus: ResMut<MessageBus<T>>, mut events: EventWriter<T>) {
     let messages = { message_bus.lock().split_off(0) };
