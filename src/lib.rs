@@ -20,17 +20,6 @@ type Result<T> = std::result::Result<T, Error>;
 #[derive(Resource, Deref, Clone, Default)]
 pub struct UrlResource(pub String);
 
-/// Convenience wrapper allowing usage of the same type for both in and out events.
-///
-/// See [BevyWryPlugin]
-#[allow(unused)]
-pub type SymmetricWryPlugin<E> = BevyWryPlugin<E, E>;
-
-/// Convenience wrapper for when you don't care about communication with [WebView]
-///
-/// See [BevyWryPlugin].
-pub type NakedWryPlugin = BevyWryPlugin<(), ()>;
-
 /// Creates a [WebView] window that can be used for both in game and editor UI rendering.
 ///
 /// You can send events to webview via [EventWriter]<[OutEvent<Out>]> and read incoming
