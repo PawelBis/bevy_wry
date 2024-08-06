@@ -68,6 +68,8 @@ where
             target_os = "openbsd",
         ))]
         {
+            // https://github.com/tauri-apps/tauri/issues/9304
+            std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
             gtk::init().unwrap();
 
             // we need to ignore this error here otherwise it will be catched by winit and will be
@@ -88,7 +90,8 @@ where
             .add_systems(Update, handle_webview_events::<I>.map(utils::error))
             .add_systems(Update, keep_webviews_in_bounds)
             .add_systems(Update, consume_in_events::<I>)
-            .add_systems(Update, send_out_events::<O>.map(utils::error));
+            .add_systems(Update, send_out_events::<O>.map(utils::error))
+            .add_systems(Update, gtk_iteration_do);
     }
 }
 
@@ -120,7 +123,6 @@ where
         match event {
             WebViewEvent::Create(params) => {
                 let webview = create_webview(params, primary_window, in_bus.clone())?;
-
                 webviews.insert(params.name.clone(), webview, params.bounds.clone());
             }
             WebViewEvent::UpdateAnchor {
@@ -154,4 +156,12 @@ where
 
     world.insert_resource(ScaleFactor::from(scale_factor));
     Ok(())
+}
+
+fn gtk_iteration_do(
+    _: &mut World,
+) {
+    while gtk::events_pending() {
+        gtk::main_iteration_do(false);
+    }
 }

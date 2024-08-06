@@ -20,11 +20,6 @@ pub struct WebViews {
 
 impl WebViews {
     pub fn insert(&mut self, name: String, webview: WebView, bounds: Bounds) {
-        if self.webviews.contains_key(&name) {
-            warn!("Tried to re-insert WebView {name}");
-            return;
-        }
-
         self.webviews.insert(name.clone(), webview);
         self.bounds.insert(name, bounds);
     }

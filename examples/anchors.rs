@@ -33,7 +33,11 @@ fn main() {
         .run();
 }
 
-fn setup(mut writer: EventWriter<WebViewEvent>) {
+fn setup(
+    mut commands: Commands,
+    mut writer: EventWriter<WebViewEvent>
+) {
+    commands.spawn(Camera2dBundle::default());
     let html = r#"
       <html>
         <style>
@@ -65,7 +69,7 @@ fn setup(mut writer: EventWriter<WebViewEvent>) {
         CreateWebView {
             name: WEBVIEW_NAME.to_string(),
             source: bevy_wry::events::Source::Html(html),
-            transparent: true,
+            transparent: false,
             bounds: Bounds::Relative {
                 anchor: Anchor::Center,
                 bounds: wry::Rect {
