@@ -1,7 +1,7 @@
 use bevy::app::AppExit;
 use bevy::prelude::*;
-use bevy_wry::components::{Anchor, Bounds};
-use bevy_wry::events::{CreateWebView, WebViewEvent};
+use bevy_wry::components::webview::{Initialized, WebViewBundleBuilder};
+use bevy_wry::components::Anchor;
 use bevy_wry::BevyWryPlugin;
 use wry::dpi::{LogicalPosition, LogicalSize};
 
@@ -18,13 +18,9 @@ struct NextAnchor;
 #[derive(Event, Clone, serde::Serialize, serde::Deserialize)]
 struct InWrapper(pub NextAnchor);
 
-#[derive(Resource)]
-struct CurrentAnchor(Anchor);
-
 fn main() {
     App::new()
         .insert_resource(ClearColor(Color::PURPLE))
-        .insert_resource(CurrentAnchor(Anchor::Center))
         .add_event::<NextAnchor>()
         .add_plugins(DefaultPlugins)
         .add_plugins(BevyWryPlugin::<InWrapper>::default())
@@ -33,10 +29,7 @@ fn main() {
         .run();
 }
 
-fn setup(
-    mut commands: Commands,
-    mut writer: EventWriter<WebViewEvent>
-) {
+fn setup(mut commands: Commands) {
     commands.spawn(Camera2dBundle::default());
     let html = r#"
       <html>
@@ -65,56 +58,49 @@ fn setup(
     "#
     .to_string();
 
-    writer.send(
-        CreateWebView {
-            name: WEBVIEW_NAME.to_string(),
-            source: bevy_wry::events::Source::Html(html),
-            transparent: false,
-            bounds: Bounds::Relative {
-                anchor: Anchor::Center,
-                bounds: wry::Rect {
-                    position: LogicalPosition::new(-50.0, -50.0).into(),
-                    size: BTN_SIZE.into(),
-                },
-            },
-        }
-        .into(),
+    commands.spawn(
+        WebViewBundleBuilder::new(WEBVIEW_NAME)
+            .with_html(html)
+            .with_transparent(false)
+            .with_size(BTN_SIZE)
+            .with_position(LogicalPosition::new(-50.0, -50.0))
+            .with_anchor(Anchor::Center)
+            .build(),
     );
 }
 
 fn handle_events(
     mut event_reader: EventReader<InWrapper>,
     mut exit_writer: EventWriter<AppExit>,
-    mut webview_event_writer: EventWriter<WebViewEvent>,
-    mut current_anchor: ResMut<CurrentAnchor>,
+    mut webviews: Query<&mut Anchor, With<Initialized>>,
 ) {
-    for _ in event_reader.read() {
-        let new_anchor = match current_anchor.0 {
-            Anchor::Top => Anchor::TopRight,
-            Anchor::Bottom => Anchor::BottomLeft,
-            Anchor::Left => Anchor::TopLeft,
-            Anchor::Right => Anchor::BottomRight,
-            Anchor::Center => Anchor::Top,
-            Anchor::TopStretch => Anchor::RightStretch,
-            Anchor::BottomStretch => Anchor::LeftStretch,
-            Anchor::LeftStretch => Anchor::CenterVerticalStretch,
-            Anchor::RightStretch => Anchor::BottomStretch,
-            Anchor::TopLeft => Anchor::TopStretch,
-            Anchor::TopRight => Anchor::Right,
-            Anchor::BottomLeft => Anchor::Left,
-            Anchor::BottomRight => Anchor::Bottom,
-            Anchor::CenterVerticalStretch => Anchor::CenterHorizontalStretch,
-            Anchor::CenterHorizontalStretch => Anchor::Center,
-        };
-
-        if new_anchor == Anchor::Center {
-            exit_writer.send(AppExit);
-        }
-
-        *current_anchor = CurrentAnchor(new_anchor);
-        webview_event_writer.send(WebViewEvent::UpdateAnchor {
-            webview_name: WEBVIEW_NAME.to_string(),
-            new_anchor,
-        });
+    if webviews.is_empty() || event_reader.is_empty() {
+        return;
     }
+
+    event_reader.clear();
+    let mut anchor = webviews.single_mut();
+    let new_anchor = match *anchor {
+        Anchor::Top => Anchor::TopRight,
+        Anchor::Bottom => Anchor::BottomLeft,
+        Anchor::Left => Anchor::TopLeft,
+        Anchor::Right => Anchor::BottomRight,
+        Anchor::Center => Anchor::Top,
+        Anchor::TopStretch => Anchor::RightStretch,
+        Anchor::BottomStretch => Anchor::LeftStretch,
+        Anchor::LeftStretch => Anchor::CenterVerticalStretch,
+        Anchor::RightStretch => Anchor::BottomStretch,
+        Anchor::TopLeft => Anchor::TopStretch,
+        Anchor::TopRight => Anchor::Right,
+        Anchor::BottomLeft => Anchor::Left,
+        Anchor::BottomRight => Anchor::Bottom,
+        Anchor::CenterVerticalStretch => Anchor::CenterHorizontalStretch,
+        Anchor::CenterHorizontalStretch => Anchor::FullScreen,
+        Anchor::FullScreen => {
+            exit_writer.send(AppExit);
+            return;
+        }
+    };
+
+    *anchor = new_anchor;
 }

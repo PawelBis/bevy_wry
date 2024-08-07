@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::webview::WebViews;
+use crate::components::webview::WebViews;
 
 use super::error::Error;
 use super::{MessageBus, OutWryEvent};
@@ -26,7 +26,7 @@ pub fn send_out_events<T: Event + OutWryEvent>(
                 }
             }
             None => {
-                for webview in webviews.get_all_webviews() {
+                for webview in webviews.get_all() {
                     webview
                         .evaluate_script(&event.to_script())
                         .map_err(|_| Error::EvaluateScript)?;

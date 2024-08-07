@@ -1,7 +1,7 @@
 use bevy::app::AppExit;
 use bevy::prelude::*;
-use bevy_wry::components::Bounds;
-use bevy_wry::events::{CreateWebView, OutWryEvent, WebViewEvent};
+use bevy_wry::components::webview::WebViewBundleBuilder;
+use bevy_wry::events::OutWryEvent;
 use bevy_wry::BevyWryPlugin;
 use std::env;
 
@@ -42,7 +42,7 @@ fn main() {
         .run();
 }
 
-fn setup(mut commands: Commands, mut writer: EventWriter<WebViewEvent>) {
+fn setup(mut commands: Commands) {
     commands.spawn(Camera2dBundle::default());
     commands.spawn(SpriteBundle {
         sprite: Sprite {
@@ -57,14 +57,11 @@ fn setup(mut commands: Commands, mut writer: EventWriter<WebViewEvent>) {
     // bevy_wry needs absolute path to files for now
     let manifest_path = env::var("CARGO_MANIFEST_DIR").unwrap();
     let ui_path = format!("file://{manifest_path}/examples/web/ui.html");
-    writer.send(
-        CreateWebView {
-            name: WEBVIEW_NAME.to_string(),
-            source: bevy_wry::events::Source::Url(ui_path),
-            transparent: true,
-            bounds: Bounds::FullScreen,
-        }
-        .into(),
+    commands.spawn(
+        WebViewBundleBuilder::new(WEBVIEW_NAME)
+            .with_transparent(true)
+            .with_url(ui_path)
+            .build(),
     );
 }
 
