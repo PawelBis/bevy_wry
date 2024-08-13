@@ -1,4 +1,5 @@
 use bevy::app::AppExit;
+use bevy::color::palettes::css::PURPLE;
 use bevy::prelude::*;
 use bevy_wry::components::webview::{Initialized, WebViewBundleBuilder};
 use bevy_wry::components::Anchor;
@@ -20,7 +21,7 @@ struct InWrapper(pub NextAnchor);
 
 fn main() {
     App::new()
-        .insert_resource(ClearColor(Color::PURPLE))
+        .insert_resource(ClearColor(Color::Srgba(PURPLE)))
         .add_event::<NextAnchor>()
         .add_plugins(DefaultPlugins)
         .add_plugins(BevyWryPlugin::<InWrapper>::default())
@@ -97,7 +98,7 @@ fn handle_events(
         Anchor::CenterVerticalStretch => Anchor::CenterHorizontalStretch,
         Anchor::CenterHorizontalStretch => Anchor::FullScreen,
         Anchor::FullScreen => {
-            exit_writer.send(AppExit);
+            exit_writer.send(AppExit::Success);
             return;
         }
     };

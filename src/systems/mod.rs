@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use bevy::winit::WinitWindows;
+use std::ops::Deref;
 use wry::WebViewBuilder;
 
 use crate::components::bounds::{to_webview_bounds, Position, Size};
@@ -31,7 +32,7 @@ pub fn create_webviews<I>(
     for<'de> I: InWryEvent<'de>,
 {
     let primary_window = primary_window_entity.single();
-    let primary_window: &winit::window::Window = winit_windows.get_window(primary_window).unwrap();
+    let primary_window = winit_windows.get_window(primary_window).unwrap();
     let window_size = primary_window.inner_size();
     let scale_factor = primary_window.scale_factor();
 
@@ -39,7 +40,7 @@ pub fn create_webviews<I>(
         webview_entities.iter()
     {
         let bounds = to_webview_bounds(*anchor, position.0, size.0, window_size, scale_factor);
-        let builder = WebViewBuilder::new_as_child(primary_window)
+        let builder = WebViewBuilder::new_as_child(primary_window.deref())
             .with_transparent(transparency.0)
             .with_bounds(bounds);
 

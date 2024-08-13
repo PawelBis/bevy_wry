@@ -1,4 +1,5 @@
 use bevy::app::AppExit;
+use bevy::color::palettes::css::PURPLE;
 use bevy::prelude::*;
 use bevy_wry::components::webview::WebViewBundleBuilder;
 use bevy_wry::events::OutWryEvent;
@@ -34,7 +35,7 @@ impl OutWryEvent for OutWrapper {
 
 fn main() {
     App::new()
-        .insert_resource(ClearColor(Color::PURPLE))
+        .insert_resource(ClearColor(Color::Srgba(PURPLE)))
         .add_plugins(DefaultPlugins)
         .add_plugins(BevyWryPlugin::<InWrapper, OutWrapper>::default())
         .add_systems(Startup, setup)
@@ -46,7 +47,7 @@ fn setup(mut commands: Commands) {
     commands.spawn(Camera2dBundle::default());
     commands.spawn(SpriteBundle {
         sprite: Sprite {
-            color: Color::rgb(1.0, 1.0, 1.0),
+            color: Color::srgb(1.0, 1.0, 1.0),
             custom_size: Some(Vec2::new(100.0, 100.0)),
             ..default()
         },
@@ -83,7 +84,7 @@ fn handle_events(
                 }
             }
             Command::Exit => {
-                exit_writer.send(AppExit);
+                exit_writer.send(AppExit::Success);
             }
             _ => (),
         }
