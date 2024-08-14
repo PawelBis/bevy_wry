@@ -16,17 +16,18 @@ const BTN_SIZE: LogicalSize<f64> = LogicalSize {
 #[derive(Event, Clone, serde::Serialize, serde::Deserialize)]
 struct NextAnchor;
 
-#[derive(Event, Clone, serde::Serialize, serde::Deserialize)]
-struct InWrapper(pub NextAnchor);
+fn init_bevy_wry(app: &mut App) {
+    BevyWryPlugin::reqister_in_webview_event::<NextAnchor>(app);
+}
 
 fn main() {
     App::new()
         .insert_resource(ClearColor(Color::Srgba(PURPLE)))
         .add_event::<NextAnchor>()
         .add_plugins(DefaultPlugins)
-        .add_plugins(BevyWryPlugin::<InWrapper>::default())
+        .add_plugins(BevyWryPlugin::new(init_bevy_wry))
         .add_systems(Startup, setup)
-        .add_systems(Update, handle_events)
+        .observe(next_anchor)
         .run();
 }
 
@@ -70,16 +71,15 @@ fn setup(mut commands: Commands) {
     );
 }
 
-fn handle_events(
-    mut event_reader: EventReader<InWrapper>,
+fn next_anchor(
+    _: Trigger<NextAnchor>,
     mut exit_writer: EventWriter<AppExit>,
     mut webviews: Query<&mut Anchor, With<Initialized>>,
 ) {
-    if webviews.is_empty() || event_reader.is_empty() {
+    if webviews.is_empty() {
         return;
     }
 
-    event_reader.clear();
     let mut anchor = webviews.single_mut();
     let new_anchor = match *anchor {
         Anchor::Top => Anchor::TopRight,

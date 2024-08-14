@@ -3,14 +3,11 @@ mod error;
 pub mod events;
 pub mod systems;
 
-use std::marker::PhantomData;
-
 use bevy::prelude::*;
-use bevy::utils;
 use components::webview::WebViews;
-use events::system::{consume_in_events, send_out_events};
-use events::{EmptyInEvent, EmptyOutEvent, InWryEvent, MessageBus, OutWryEvent};
+use events::{InWryEvent, OutWryEvent};
 
+use systems::{out_events, trigger_webview_event};
 pub use wry;
 pub use wry::dpi::{Position as WryPosition, Size as WrySize};
 
@@ -19,49 +16,35 @@ pub use wry::dpi::{Position as WryPosition, Size as WrySize};
 #[derive(Resource, Deref, Clone, Default)]
 pub struct UrlResource(pub String);
 
-/// Creates a [WebView] window that can be used for both in game and editor UI rendering.
-///
-/// You can send events to webview via [EventWriter]<[OutEvent<Out>]> and read incoming
-/// events with [EventReader]<[InEvent]>.
-/// Out events are sent via webview.:evaluate_script.
-pub struct BevyWryPlugin<I = EmptyInEvent, O = EmptyOutEvent>
-where
-    for<'de> I: InWryEvent<'de>,
-    O: OutWryEvent,
-{
-    _i: PhantomData<I>,
-    _o: PhantomData<O>,
+pub struct BevyWryPlugin {
+    setup_callback: fn(&mut App),
 }
 
-impl<I, O> Default for BevyWryPlugin<I, O>
-where
-    for<'de> I: InWryEvent<'de>,
-    O: OutWryEvent,
-{
-    fn default() -> Self {
-        Self {
-            _i: PhantomData,
-            _o: PhantomData,
-        }
+impl BevyWryPlugin {
+    pub fn new(setup_callback: fn(&mut App)) -> Self {
+        Self { setup_callback }
+    }
+
+    pub fn reqister_in_webview_event<E>(app: &mut App)
+    where
+        for<'de> E: InWryEvent<'de>,
+    {
+        app.add_event::<E>()
+            .add_systems(Update, trigger_webview_event::<E>);
+    }
+
+    pub fn reqister_out_webview_event<E: OutWryEvent>(app: &mut App) {
+        app.add_event::<E>().observe(out_events::<E>);
     }
 }
 
-impl<I, O> Plugin for BevyWryPlugin<I, O>
-where
-    for<'de> I: InWryEvent<'de>,
-    O: OutWryEvent,
-{
+impl Plugin for BevyWryPlugin {
     fn build(&self, app: &mut App) {
-        let _app = app
-            .add_event::<I>()
-            .add_event::<O>()
+        let app = app
             .insert_non_send_resource(WebViews::default())
-            .init_resource::<MessageBus<I>>()
-            .init_resource::<MessageBus<O>>()
-            .add_systems(Update, systems::create_webviews::<I>)
+            .add_systems(Update, systems::create_webviews)
             .add_systems(Update, systems::keep_webviews_in_bounds)
-            .add_systems(Update, consume_in_events::<I>)
-            .add_systems(Update, send_out_events::<O>.map(utils::error));
+            .add_systems(PostUpdate, systems::clear_busses);
 
         #[cfg(any(
             target_os = "linux",
@@ -82,8 +65,11 @@ where
                 (unsafe { (*error).error_code }) == 170
             }));
 
-            _app.add_systems(Update, gtk_iteration_do);
+            let app = app.add_systems(Update, gtk_iteration_do);
         }
+
+        let setup = self.setup_callback;
+        setup(app);
     }
 }
 

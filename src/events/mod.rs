@@ -1,16 +1,12 @@
 pub mod error;
-pub mod system;
 
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
-use bevy::prelude::{Deref, Event, Resource};
+use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
 pub trait OutWryEvent: Event + Serialize + Send {
     fn to_script(&self) -> String;
-    fn target_webview(&self) -> Option<String> {
-        None
-    }
 }
 
 pub trait InWryEvent<'de>: Event + Deserialize<'de> + Send {}
@@ -19,32 +15,47 @@ impl<'de, T> InWryEvent<'de> for T where T: Event + Deserialize<'de> + Send {}
 #[derive(Deserialize, Serialize, Event)]
 pub struct EmptyOutEvent;
 
-impl OutWryEvent for EmptyOutEvent {
-    fn to_script(&self) -> String {
-        "".to_string()
-    }
-}
-
 #[derive(Deserialize, Serialize, Event)]
 pub struct EmptyInEvent;
 
-#[derive(Deref, Resource)]
-pub struct MessageBus<T: Send>(pub Arc<Mutex<Vec<T>>>);
+/// MessageBus gathers all webview events.
+#[derive(Deref)]
+pub struct MessageBus {
+    messages: Arc<RwLock<Vec<String>>>,
+}
 
-impl<T: Send> MessageBus<T> {
-    pub fn lock(&self) -> MutexGuard<Vec<T>> {
-        self.0.lock().unwrap()
+impl MessageBus {
+    pub fn write(&self) -> RwLockWriteGuard<Vec<String>> {
+        self.messages.write().unwrap()
+    }
+
+    pub fn read(&self) -> RwLockReadGuard<Vec<String>> {
+        self.messages.read().unwrap()
+    }
+
+    pub fn clear(&self) {
+        self.messages.write().unwrap().clear();
     }
 }
 
-impl<T: Send> Default for MessageBus<T> {
+impl Default for MessageBus {
     fn default() -> Self {
-        Self(Arc::new(Mutex::new(Vec::<T>::new())))
+        Self {
+            messages: Arc::new(RwLock::new(Vec::new())),
+        }
     }
 }
 
-impl<T: Send> Clone for MessageBus<T> {
+impl Clone for MessageBus {
     fn clone(&self) -> Self {
-        Self(self.0.clone())
+        Self {
+            messages: self.messages.clone(),
+        }
     }
 }
+
+#[derive(Component, Deref, Default)]
+pub struct InMessageBus(MessageBus);
+
+#[derive(Component, Deref, Default)]
+pub struct OutMessageBus(MessageBus);

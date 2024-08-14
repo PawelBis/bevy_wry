@@ -130,6 +130,7 @@ pub struct Initialized;
 
 #[derive(Default)]
 pub struct WebViews {
+    /// TODO: Use HashMap<Entity, WebView> instead
     webviews: HashMap<String, WebView>,
 }
 

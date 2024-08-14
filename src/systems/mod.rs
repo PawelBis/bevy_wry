@@ -7,10 +7,10 @@ use wry::WebViewBuilder;
 use crate::components::bounds::{to_webview_bounds, Position, Size};
 use crate::components::webview::{Initialized, Source, Transparency, WebViewComponent, WebViews};
 use crate::components::Anchor;
-use crate::events::{InWryEvent, MessageBus};
+use crate::events::{InMessageBus, InWryEvent, OutMessageBus, OutWryEvent};
 
 #[allow(clippy::type_complexity)]
-pub fn create_webviews<I>(
+pub fn create_webviews(
     mut commands: Commands,
     mut webviews: NonSendMut<WebViews>,
     webview_entities: Query<
@@ -25,12 +25,9 @@ pub fn create_webviews<I>(
         ),
         Without<Initialized>,
     >,
-    in_messages: Res<MessageBus<I>>,
     primary_window_entity: Query<Entity, With<PrimaryWindow>>,
     winit_windows: NonSend<WinitWindows>,
-) where
-    for<'de> I: InWryEvent<'de>,
-{
+) {
     let primary_window = primary_window_entity.single();
     let primary_window = winit_windows.get_window(primary_window).unwrap();
     let window_size = primary_window.inner_size();
@@ -49,11 +46,11 @@ pub fn create_webviews<I>(
             Source::Html(html) => builder.with_html(html.clone()),
         };
 
-        let in_bus = in_messages.clone();
+        let in_bus = InMessageBus::default();
+        let ipc_bus = in_bus.clone();
         let webview = builder
             .with_ipc_handler(move |request| {
-                let event: I = serde_json::from_str(request.body()).unwrap();
-                in_bus.lock().push(event);
+                ipc_bus.write().push(request.body().clone());
             })
             .build()
             .unwrap();
@@ -61,7 +58,11 @@ pub fn create_webviews<I>(
         let WebViewComponent { webview_name } = webview_component;
         webviews.insert(webview_name.clone(), webview);
 
-        commands.entity(entity).insert(Initialized);
+        commands
+            .entity(entity)
+            .insert(Initialized)
+            .insert(in_bus)
+            .insert(OutMessageBus::default());
     }
 }
 
@@ -82,5 +83,44 @@ pub fn keep_webviews_in_bounds(
             .expect("WebView with 'Initialized' component should be present in WebViews resource");
         let bounds = to_webview_bounds(*anchor, position.0, size.0, window_size, scale_factor);
         webview.set_bounds(bounds).unwrap();
+    }
+}
+
+/// Reads `MessageBus`, converts the json to `E` event and triggers
+/// the event. Those events can be read with observer systems.
+pub fn trigger_webview_event<T>(mut commands: Commands, webviews: Query<(Entity, &InMessageBus)>)
+where
+    for<'de> T: InWryEvent<'de>,
+{
+    for (entity, msg_bus) in webviews.iter() {
+        for msg in msg_bus.read().iter() {
+            let event: T = serde_json::from_str(msg).unwrap();
+            commands.trigger_targets(event, entity);
+        }
+    }
+}
+
+/// Observes out events and propagates those to OutMessageBus
+pub fn out_events<E: OutWryEvent>(trigger: Trigger<E>, out_bus: Query<&OutMessageBus>) {
+    let ob = out_bus.get(trigger.entity()).unwrap();
+    let event: &E = trigger.event();
+    ob.write().push(event.to_script());
+}
+
+pub fn clear_busses(
+    webviews: NonSend<WebViews>,
+    busses: Query<(&WebViewComponent, &InMessageBus, &OutMessageBus)>,
+) {
+    for (webview_component, in_bus, out_bus) in busses.iter() {
+        for msg in out_bus.read().iter() {
+            webviews
+                .get_webview(&webview_component.webview_name)
+                .unwrap()
+                .evaluate_script(msg)
+                .unwrap();
+        }
+
+        in_bus.clear();
+        out_bus.clear();
     }
 }

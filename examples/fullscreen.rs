@@ -8,38 +8,39 @@ use std::env;
 
 const WEBVIEW_NAME: &str = "MAIN_WEBVIEW";
 
-#[derive(Event, Clone, serde::Serialize, serde::Deserialize)]
-enum Command {
+/// Command arriving from WebView
+#[derive(Event, Clone, serde::Deserialize)]
+enum InCommand {
     Rotate { angle: f32 },
-    ShowButton,
     Exit,
 }
 
-#[derive(Event, Clone, serde::Serialize, serde::Deserialize)]
-struct InWrapper(pub Command);
+/// Command send to webview
+#[derive(Event, Clone, serde::Serialize)]
+enum OutCommand {
+    ShowButton,
+}
 
-#[derive(Event, Clone, serde::Serialize, serde::Deserialize)]
-struct OutWrapper(pub Command);
-
-impl OutWryEvent for OutWrapper {
+impl OutWryEvent for OutCommand {
     fn to_script(&self) -> String {
-        match self.0 {
-            // ShowButton is our only OutCommand
-            // Please note that 'showButton' is a method implemented in
-            // our UI code: examples/web/ui.html
-            Command::ShowButton => "showButton()".to_string(),
-            _ => unreachable!(),
+        match self {
+            OutCommand::ShowButton => "showButton()".to_string(),
         }
     }
+}
+
+fn init_bevy_wry(app: &mut App) {
+    BevyWryPlugin::reqister_in_webview_event::<InCommand>(app);
+    BevyWryPlugin::reqister_out_webview_event::<OutCommand>(app);
 }
 
 fn main() {
     App::new()
         .insert_resource(ClearColor(Color::Srgba(PURPLE)))
         .add_plugins(DefaultPlugins)
-        .add_plugins(BevyWryPlugin::<InWrapper, OutWrapper>::default())
+        .add_plugins(BevyWryPlugin::new(init_bevy_wry))
         .add_systems(Startup, setup)
-        .add_systems(Update, handle_events)
+        .observe(in_commands)
         .run();
 }
 
@@ -66,27 +67,27 @@ fn setup(mut commands: Commands) {
     );
 }
 
-fn handle_events(
-    mut event_reader: EventReader<InWrapper>,
-    mut event_writer: EventWriter<OutWrapper>,
+fn in_commands(
+    trigger: Trigger<InCommand>,
+    mut commands: Commands,
     mut exit_writer: EventWriter<AppExit>,
     mut sprite: Query<(&mut Transform, &Sprite)>,
 ) {
-    for event in event_reader.read() {
-        match event.0 {
-            Command::Rotate { angle } => {
-                let (mut transform, _) = sprite.single_mut();
-                transform.rotate_z(f32::to_radians(angle));
+    let event = trigger.event();
+    let webview_entity = trigger.entity();
 
-                let (_, z) = transform.rotation.to_axis_angle();
-                if z == f32::to_radians(180.0) {
-                    event_writer.send(OutWrapper(Command::ShowButton));
-                }
+    match event {
+        InCommand::Rotate { angle } => {
+            let (mut transform, _) = sprite.single_mut();
+            transform.rotate_z(f32::to_radians(*angle));
+
+            let (_, z) = transform.rotation.to_axis_angle();
+            if z == f32::to_radians(180.0) {
+                commands.trigger_targets(OutCommand::ShowButton, webview_entity);
             }
-            Command::Exit => {
-                exit_writer.send(AppExit::Success);
-            }
-            _ => (),
+        }
+        InCommand::Exit => {
+            exit_writer.send(AppExit::Success);
         }
     }
 }
