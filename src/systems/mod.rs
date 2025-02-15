@@ -37,7 +37,7 @@ pub fn create_webviews(
         webview_entities.iter()
     {
         let bounds = to_webview_bounds(*anchor, position.0, size.0, window_size, scale_factor);
-        let builder = WebViewBuilder::new_as_child(primary_window.deref())
+        let builder = WebViewBuilder::new()
             .with_transparent(transparency.0)
             .with_bounds(bounds);
 
@@ -52,7 +52,7 @@ pub fn create_webviews(
             .with_ipc_handler(move |request| {
                 ipc_bus.write().push(request.body().clone());
             })
-            .build()
+            .build_as_child(primary_window.deref())
             .unwrap();
 
         let WebViewComponent { webview_name } = webview_component;
