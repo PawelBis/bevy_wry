@@ -1,6 +1,6 @@
-use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use bevy::winit::WinitWindows;
+use bevy::{log, prelude::*};
 use std::ops::Deref;
 use wry::WebViewBuilder;
 
@@ -8,6 +8,10 @@ use crate::components::bounds::{to_webview_bounds, Position, Size};
 use crate::components::webview::{Initialized, Source, Transparency, WebViewComponent, WebViews};
 use crate::components::Anchor;
 use crate::events::{InMessageBus, InWryEvent, OutMessageBus, OutWryEvent};
+
+pub fn boot_delay_elapsed(time: Res<Time>) -> bool {
+    time.elapsed_secs() > 1.0
+}
 
 #[allow(clippy::type_complexity)]
 pub fn create_webviews(

@@ -11,7 +11,7 @@ repository = "https://github.com/PawelBis/bevy_wry"
 
 [dependencies]
 wry = { version = "0.48.1", features = ["transparent", "devtools"] }
-bevy = { version = "0.14", default-features = false, features = ["bevy_winit"] }
+bevy = { version = "0.15", default-features = false, features = ["bevy_winit"] }
 winit = { version = "0.30", features = ["rwh_06"] }
 thiserror = "1.0"
 serde = { version = "1.0", default-features = false }
@@ -22,7 +22,7 @@ gtk = { version = "0.18" }
 x11-dl = "2.21.0"
 
 [dev-dependencies]
-bevy = { version = "0.14", default-features = true }
+bevy = { version = "0.15", default-features = true }
 
 [[example]]
 name = "fullscreen"

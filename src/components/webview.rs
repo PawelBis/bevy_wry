@@ -1,7 +1,7 @@
 use crate::{WryPosition, WrySize};
 use bevy::prelude::*;
 use bevy::utils::hashbrown::hash_map::Values;
-use bevy::utils::HashMap;
+use bevy::utils::hashbrown::HashMap;
 use wry::dpi::{LogicalPosition, LogicalSize};
 use wry::WebView;
 

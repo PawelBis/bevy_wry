@@ -27,12 +27,12 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_plugins(BevyWryPlugin::new(init_bevy_wry))
         .add_systems(Startup, setup)
-        .observe(next_anchor)
+        .add_observer(next_anchor)
         .run();
 }
 
 fn setup(mut commands: Commands) {
-    commands.spawn(Camera2dBundle::default());
+    commands.spawn(Camera2d::default());
     let html = r#"
       <html>
         <style>

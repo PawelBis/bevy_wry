@@ -34,7 +34,7 @@ impl BevyWryPlugin {
     }
 
     pub fn reqister_out_webview_event<E: OutWryEvent>(app: &mut App) {
-        app.add_event::<E>().observe(out_events::<E>);
+        app.add_event::<E>().add_observer(out_events::<E>);
     }
 }
 
@@ -42,8 +42,14 @@ impl Plugin for BevyWryPlugin {
     fn build(&self, app: &mut App) {
         let app = app
             .insert_non_send_resource(WebViews::default())
-            .add_systems(Update, systems::create_webviews)
-            .add_systems(Update, systems::keep_webviews_in_bounds)
+            .add_systems(
+                Update,
+                (systems::create_webviews, systems::keep_webviews_in_bounds)
+                    // FIXME: After wgpu update (22 -> 23), bevy commit: 4b05d2f4
+                    // rendering doesn't work without this small delay. I narrowed
+                    // it down to this wgpu commit: fb0cb1eb
+                    .run_if(systems::boot_delay_elapsed),
+            )
             .add_systems(PostUpdate, systems::clear_busses);
 
         #[cfg(any(
