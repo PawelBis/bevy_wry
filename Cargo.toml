@@ -28,6 +28,10 @@ bevy = { version = "0.15", default-features = true }
 name = "fullscreen"
 path = "examples/fullscreen.rs"
 
+[[example]]
+name = "leptos"
+path = "examples/leptos/leptos-ui.rs"
+
 [patch.crates-io]
 # At the moment http disallows empty authority and invalidates uris like: "file:///path/to/file"
 http = { git = "https://github.com/PawelBis/http", branch = "feature/empty-authority" }
