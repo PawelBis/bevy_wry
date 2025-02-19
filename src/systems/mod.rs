@@ -1,6 +1,6 @@
+use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use bevy::winit::WinitWindows;
-use bevy::{log, prelude::*};
 use std::ops::Deref;
 use wry::WebViewBuilder;
 

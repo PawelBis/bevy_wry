@@ -1,9 +1,6 @@
 use bevy::app::AppExit;
 use bevy::color::palettes::css::PURPLE;
-use bevy::log;
 use bevy::prelude::*;
-use bevy::render::settings::{RenderCreation, WgpuSettings};
-use bevy::render::RenderPlugin;
 use bevy_wry::components::webview::WebViewBundleBuilder;
 use bevy_wry::events::OutWryEvent;
 use bevy_wry::BevyWryPlugin;
@@ -40,6 +37,7 @@ fn init_bevy_wry(app: &mut App) {
 fn main() {
     App::new()
         .insert_resource(ClearColor(Color::Srgba(PURPLE)))
+        .add_plugins(DefaultPlugins)
         .add_plugins(BevyWryPlugin::new(init_bevy_wry))
         .add_systems(Startup, setup)
         .add_observer(in_commands)
@@ -59,7 +57,7 @@ fn setup(mut commands: Commands) {
 
     // bevy_wry needs absolute path to files for now
     let manifest_path = env::var("CARGO_MANIFEST_DIR").unwrap();
-    let ui_path = format!("file://{manifest_path}/examples/web/ui.html");
+    let ui_path = format!("file://{manifest_path}/examples/web/index.html");
     commands.spawn(
         WebViewBundleBuilder::new(WEBVIEW_NAME)
             .with_transparent(true)
