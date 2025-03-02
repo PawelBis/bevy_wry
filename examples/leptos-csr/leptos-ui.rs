@@ -1,9 +1,8 @@
 use bevy::prelude::*;
-use bevy_wry::{components::webview::WebViewBundleBuilder, BevyWryPlugin};
-use std::{
-    env,
-    process::{Child, Command, Stdio},
-};
+use bevy_wry::components::webview::WebViewBundleBuilder;
+use bevy_wry::BevyWryPlugin;
+use std::env;
+use std::process::{Child, Command, Stdio};
 
 fn setup(mut commands: Commands) {
     commands.spawn(

@@ -1,6 +1,6 @@
 [package]
 name = "bevy_wry"
-version = "0.1.10"
+version = "0.1.11"
 edition = "2021"
 categories = ["game-development"]
 description = "A tauri-apps/wry integration with Bevy engine"
@@ -30,7 +30,7 @@ path = "examples/fullscreen.rs"
 
 [[example]]
 name = "leptos"
-path = "examples/leptos/leptos-ui.rs"
+path = "examples/leptos-csr/leptos-ui.rs"
 
 [patch.crates-io]
 # At the moment http disallows empty authority and invalidates uris like: "file:///path/to/file"
