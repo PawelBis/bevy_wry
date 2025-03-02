@@ -3,7 +3,7 @@ use bevy::color::palettes::css::PURPLE;
 use bevy::prelude::*;
 use bevy_wry::components::webview::WebViewBundleBuilder;
 use bevy_wry::events::OutWryEvent;
-use bevy_wry::BevyWryPlugin;
+use bevy_wry::{register_incoming_event, register_out_event, BevyWryPlugin};
 use std::env;
 
 const WEBVIEW_NAME: &str = "MAIN_WEBVIEW";
@@ -30,8 +30,8 @@ impl OutWryEvent for OutCommand {
 }
 
 fn init_bevy_wry(app: &mut App) {
-    BevyWryPlugin::reqister_in_webview_event::<InCommand>(app);
-    BevyWryPlugin::reqister_out_webview_event::<OutCommand>(app);
+    register_incoming_event::<InCommand>(app);
+    register_out_event::<OutCommand>(app);
 }
 
 fn main() {

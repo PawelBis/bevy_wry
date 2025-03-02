@@ -3,7 +3,7 @@ use bevy::color::palettes::css::PURPLE;
 use bevy::prelude::*;
 use bevy_wry::components::webview::{Initialized, WebViewBundleBuilder};
 use bevy_wry::components::Anchor;
-use bevy_wry::BevyWryPlugin;
+use bevy_wry::{register_incoming_event, BevyWryPlugin};
 use wry::dpi::{LogicalPosition, LogicalSize};
 
 const WEBVIEW_NAME: &str = "MAIN_WEBVIEW";
@@ -17,7 +17,7 @@ const BTN_SIZE: LogicalSize<f64> = LogicalSize {
 struct NextAnchor;
 
 fn init_bevy_wry(app: &mut App) {
-    BevyWryPlugin::reqister_in_webview_event::<NextAnchor>(app);
+    register_incoming_event::<NextAnchor>(app);
 }
 
 fn main() {
