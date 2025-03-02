@@ -16,16 +16,14 @@ const BTN_SIZE: LogicalSize<f64> = LogicalSize {
 #[derive(Event, Clone, serde::Serialize, serde::Deserialize)]
 struct NextAnchor;
 
-fn init_bevy_wry(app: &mut App) {
-    register_incoming_event::<NextAnchor>(app);
-}
-
 fn main() {
     App::new()
         .insert_resource(ClearColor(Color::Srgba(PURPLE)))
         .add_event::<NextAnchor>()
         .add_plugins(DefaultPlugins)
-        .add_plugins(BevyWryPlugin::new(init_bevy_wry))
+        .add_plugins(BevyWryPlugin::new(|app| {
+            register_incoming_event::<NextAnchor>(app);
+        }))
         .add_systems(Startup, setup)
         .add_observer(next_anchor)
         .run();

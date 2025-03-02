@@ -29,16 +29,14 @@ impl OutWryEvent for OutCommand {
     }
 }
 
-fn init_bevy_wry(app: &mut App) {
-    register_incoming_event::<InCommand>(app);
-    register_out_event::<OutCommand>(app);
-}
-
 fn main() {
     App::new()
         .insert_resource(ClearColor(Color::Srgba(PURPLE)))
         .add_plugins(DefaultPlugins)
-        .add_plugins(BevyWryPlugin::new(init_bevy_wry))
+        .add_plugins(BevyWryPlugin::new(|app| {
+            register_incoming_event::<InCommand>(app);
+            register_out_event::<OutCommand>(app);
+        }))
         .add_systems(Startup, setup)
         .add_observer(in_commands)
         .run();
